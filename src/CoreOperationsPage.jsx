@@ -2,6 +2,7 @@ import React from 'react';
 import { Activity, AlertTriangle, CheckCircle2, RefreshCw, Route, Search, Server, ShieldCheck, Users, WalletCards, X } from 'lucide-react';
 import { coreApiRequest, getCoreConnection } from './coreApi.js';
 import OperationsMap from './OperationsMap.jsx';
+import Pagination, { PAGE_LIMIT, pageResult } from './Pagination.jsx';
 
 const money = value => new Intl.NumberFormat('vi-VN').format(Number(value || 0)) + ' ₫';
 const when = value => {
@@ -26,33 +27,47 @@ export default function CoreOperationsPage(){
   const [integrity,setIntegrity]=React.useState(null);
   const [connection,setConnection]=React.useState(null);
   const [trips,setTrips]=React.useState([]);
+  const [page,setPage]=React.useState(1);
+  const [pagination,setPagination]=React.useState({page:1,limit:PAGE_LIMIT,total:0,totalPages:1});
   const [liveDrivers,setLiveDrivers]=React.useState([]);
   const [query,setQuery]=React.useState('');
   const [status,setStatus]=React.useState('ALL');
   const [loading,setLoading]=React.useState(true);
+  const [tableLoading,setTableLoading]=React.useState(true);
   const [error,setError]=React.useState('');
   const [selected,setSelected]=React.useState(null);
   const [detailLoading,setDetailLoading]=React.useState(false);
 
-  const load = React.useCallback(async(refreshConnection=false)=>{
+  const loadDashboard = React.useCallback(async(refreshConnection=false)=>{
     setLoading(true); setError('');
     try{
       const c = await getCoreConnection(refreshConnection).catch(()=>null);
-      const params = new URLSearchParams({limit:'100'});
-      if(query.trim()) params.set('q',query.trim());
-      if(status!=='ALL') params.set('status',status);
-      const [o,i,b,d] = await Promise.all([
+      const [o,i,d] = await Promise.all([
         coreApiRequest('/api/v7/admin/overview'),
         coreApiRequest('/api/v7/admin/integrity'),
-        coreApiRequest(`/api/v7/admin/bookings?${params.toString()}`),
-        coreApiRequest('/api/v7/admin/drivers/live?limit=200'),
+        coreApiRequest('/api/v7/admin/drivers/live?limit=20'),
       ]);
-      setConnection(c); setOverview(o); setIntegrity(i); setTrips(Array.isArray(b)?b:[]); setLiveDrivers(Array.isArray(d)?d:[]);
+      setConnection(c); setOverview(o); setIntegrity(i); setLiveDrivers(Array.isArray(d)?d:[]);
     }catch(e){setError(e.message||String(e))}
     finally{setLoading(false)}
+  },[]);
+
+  const loadTrips = React.useCallback(async(requestedPage=1)=>{
+    setTableLoading(true); setError('');
+    try{
+      const params = new URLSearchParams({limit:String(PAGE_LIMIT),page:String(requestedPage)});
+      if(query.trim()) params.set('q',query.trim());
+      if(status!=='ALL') params.set('status',status);
+      const result=pageResult(await coreApiRequest(`/api/v7/admin/bookings?${params.toString()}`));
+      setTrips(result.items); setPagination(result.pagination); setPage(result.pagination.page);
+    }catch(e){setError(e.message||String(e))}
+    finally{setTableLoading(false)}
   },[query,status]);
 
-  React.useEffect(()=>{load(false)},[load]);
+  React.useEffect(()=>{loadDashboard(false)},[loadDashboard]);
+  React.useEffect(()=>{loadTrips(1)},[loadTrips]);
+
+  async function refreshAll(){ await Promise.all([loadDashboard(true),loadTrips(page)]); }
 
   async function openTrip(row){
     setDetailLoading(true); setSelected({loading:true,row});
@@ -69,7 +84,7 @@ export default function CoreOperationsPage(){
   return <div>
     <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:16,marginBottom:20,flexWrap:'wrap'}}>
       <div><p style={{margin:0,color:'#d71920',fontWeight:900,fontSize:12,letterSpacing:'.08em'}}>iMOVE 1.4.0 LIVE OPERATIONS</p><h1 style={{margin:'5px 0 3px',fontSize:30}}>Trung tâm vận hành realtime</h1><p style={{margin:0,color:'#7a7f89'}}>Đọc trực tiếp Core Backend, booking_events và ledger MongoDB.</p></div>
-      <button className="button button-primary" onClick={()=>load(true)} disabled={loading}><RefreshCw size={16}/>{loading?'Đang đồng bộ...':'Đồng bộ Core'}</button>
+      <button className="button button-primary" onClick={refreshAll} disabled={loading||tableLoading}><RefreshCw size={16}/>{loading||tableLoading?'Đang đồng bộ...':'Đồng bộ Core'}</button>
     </div>
 
     {error&&<div style={{padding:14,borderRadius:14,background:'#fff0f0',color:'#b42318',marginBottom:16,fontWeight:700}}><AlertTriangle size={16} style={{verticalAlign:'middle',marginRight:7}}/>{error}</div>}
@@ -91,14 +106,14 @@ export default function CoreOperationsPage(){
 
     <div style={{background:'#fff',border:'1px solid #e8eaee',borderRadius:20,overflow:'hidden'}}>
       <div style={{padding:16,borderBottom:'1px solid #edf0f3',display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
-        <div style={{position:'relative',flex:'1 1 280px'}}><Search size={17} style={{position:'absolute',left:12,top:12,color:'#878c95'}}/><input value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>e.key==='Enter'&&load(false)} placeholder="Mã chuyến, điểm đón, điểm đến..." style={{width:'100%',padding:'11px 12px 11px 38px',border:'1px solid #dfe3e8',borderRadius:12}}/></div>
+        <div style={{position:'relative',flex:'1 1 280px'}}><Search size={17} style={{position:'absolute',left:12,top:12,color:'#878c95'}}/><input value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>e.key==='Enter'&&loadTrips(1)} placeholder="Mã chuyến, điểm đón, điểm đến..." style={{width:'100%',padding:'11px 12px 11px 38px',border:'1px solid #dfe3e8',borderRadius:12}}/></div>
         <select value={status} onChange={e=>setStatus(e.target.value)} style={{padding:'11px 12px',border:'1px solid #dfe3e8',borderRadius:12}}><option value="ALL">Tất cả trạng thái</option><option value="SEARCHING">Đang tìm</option><option value="IN_PROGRESS">Đang chạy</option><option value="COMPLETED">Hoàn thành</option><option value="CANCELLED">Đã hủy</option></select>
-        <button className="button" onClick={()=>load(false)}><Search size={15}/> Tìm</button>
+        <button className="button" onClick={()=>loadTrips(1)}><Search size={15}/> Tìm</button>
       </div>
       <div style={{overflowX:'auto'}}><table style={{width:'100%',borderCollapse:'collapse',minWidth:900}}><thead><tr style={{background:'#fafbfc',textAlign:'left'}}>{['Mã chuyến','Trạng thái','Điểm đón → Điểm đến','Khách trả','Tài xế nhận','Thanh toán','Thời gian'].map(x=><th key={x} style={{padding:'12px 14px',fontSize:12,color:'#777d87'}}>{x}</th>)}</tr></thead><tbody>
         {trips.map(row=><tr key={row.id} onClick={()=>openTrip(row)} style={{borderTop:'1px solid #f0f1f3',cursor:'pointer'}}><td style={{padding:14,fontWeight:900}}>{row.code}</td><td style={{padding:14}}>{statusLabel(row.status)}</td><td style={{padding:14,maxWidth:330}}><div style={{fontWeight:700,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{row.pickup||'—'}</div><div style={{color:'#858a93',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>→ {row.destination||'—'}</div></td><td style={{padding:14,fontWeight:800}}>{money(row.customerTotal)}</td><td style={{padding:14,color:'#15803d',fontWeight:800}}>{money(row.driverNetAmount)}</td><td style={{padding:14}}>{row.paymentStatus||'—'}</td><td style={{padding:14,color:'#777d87'}}>{when(row.createdAt)}</td></tr>)}
-        {!trips.length&&!loading&&<tr><td colSpan="7" style={{padding:40,textAlign:'center',color:'#8b9098'}}>Không có chuyến phù hợp.</td></tr>}
-      </tbody></table></div>
+        {!trips.length&&!tableLoading&&<tr><td colSpan="7" style={{padding:40,textAlign:'center',color:'#8b9098'}}>Không có chuyến phù hợp.</td></tr>}
+      </tbody></table></div><div style={{padding:'0 16px 16px'}}><Pagination pagination={pagination} loading={tableLoading} onPageChange={loadTrips} label="chuyến xe"/></div>
     </div>
 
     {selected&&<div style={{position:'fixed',inset:0,background:'rgba(15,18,24,.55)',zIndex:1000,display:'flex',justifyContent:'flex-end'}} onMouseDown={e=>e.target===e.currentTarget&&setSelected(null)}>

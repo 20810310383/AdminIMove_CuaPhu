@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { coreApiRequest } from './coreApi.js';
 import FundTransferSettingsPanel from './FundTransferSettingsPanel.jsx';
+import Pagination,{PAGE_LIMIT,pageResult} from './Pagination.jsx';
 
 const money=(v)=>new Intl.NumberFormat('vi-VN').format(Number(v||0))+' ₫';
 const num=(v)=>new Intl.NumberFormat('vi-VN').format(Number(v||0));
@@ -28,6 +29,8 @@ export default function DriverPointTopupsPage(){
   const [status,setStatus]=React.useState('PENDING_REVIEW');
   const [keyword,setKeyword]=React.useState('');
   const [rows,setRows]=React.useState([]);
+  const [page,setPage]=React.useState(1);
+  const [pagination,setPagination]=React.useState({page:1,limit:PAGE_LIMIT,total:0,totalPages:1});
   const [loading,setLoading]=React.useState(true);
   const [error,setError]=React.useState('');
   const [busy,setBusy]=React.useState('');
@@ -38,18 +41,19 @@ export default function DriverPointTopupsPage(){
   const [adjustBusy,setAdjustBusy]=React.useState(false);
   const [adjustForm,setAdjustForm]=React.useState({driverId:'',direction:'CREDIT',points:'',reason:'',reference:''});
 
-  const load=React.useCallback(async()=>{
+  const load=React.useCallback(async(requestedPage=page)=>{
     setLoading(true);setError('');
     try{
-      const params=new URLSearchParams();
+      const params=new URLSearchParams({page:String(requestedPage),limit:String(PAGE_LIMIT)});
       if(status&&status!=='ALL')params.set('status',status);
       if(keyword.trim())params.set('q',keyword.trim());
       const q=params.toString()?`?${params.toString()}`:'';
       const data=await coreApiRequest(`/api/v72/admin/driver-experience/point-topups${q}`);
-      setRows(Array.isArray(data?.topups)?data.topups:[]);
+      const result=pageResult(data,'topups');
+      setRows(result.items);setPagination(result.pagination);setPage(result.pagination.page);
     }catch(e){setError(e.message||String(e))}
     finally{setLoading(false)}
-  },[status,keyword]);
+  },[status,keyword,page]);
 
   React.useEffect(()=>{
     const t=setTimeout(load,keyword.trim()?280:0);
@@ -86,8 +90,8 @@ export default function DriverPointTopupsPage(){
     setAdjustOpen(true);setError('');setAdjustBusy(true);
     try{
       const [accounts,history]=await Promise.all([
-        coreApiRequest('/api/v72/admin/driver-experience/point-accounts?limit=500'),
-        coreApiRequest('/api/v72/admin/driver-experience/point-adjustments?limit=50'),
+        coreApiRequest('/api/v72/admin/driver-experience/point-accounts?limit=20'),
+        coreApiRequest('/api/v72/admin/driver-experience/point-adjustments?limit=20'),
       ]);
       const list=Array.isArray(accounts?.drivers)?accounts.drivers:[];
       setDrivers(list);
@@ -111,8 +115,8 @@ export default function DriverPointTopupsPage(){
         headers:{'Idempotency-Key':key},
         body:JSON.stringify({...adjustForm,points:Math.abs(points),idempotencyKey:key}),
       });
-      const accounts=await coreApiRequest('/api/v72/admin/driver-experience/point-accounts?limit=500');
-      const history=await coreApiRequest('/api/v72/admin/driver-experience/point-adjustments?limit=50');
+      const accounts=await coreApiRequest('/api/v72/admin/driver-experience/point-accounts?limit=20');
+      const history=await coreApiRequest('/api/v72/admin/driver-experience/point-adjustments?limit=20');
       setDrivers(Array.isArray(accounts?.drivers)?accounts.drivers:[]);
       setAdjustments(Array.isArray(history?.adjustments)?history.adjustments:[]);
       setAdjustForm(v=>({...v,points:'',reason:'',reference:''}));
@@ -138,11 +142,11 @@ export default function DriverPointTopupsPage(){
       </div>
       <div className="page-actions">
         <button className="button button-primary" onClick={openAdjustment}><Plus size={15}/>Tạo giao dịch điểm</button>
-        <label className="enterprise-search" style={{minWidth:280}}><Search size={15}/><input value={keyword} onChange={e=>setKeyword(e.target.value)} placeholder="Tên, SĐT, mã CK..."/></label>
-        <select value={status} onChange={e=>setStatus(e.target.value)}>
+        <label className="enterprise-search" style={{minWidth:280}}><Search size={15}/><input value={keyword} onChange={e=>{setPage(1);setKeyword(e.target.value)}} placeholder="Tên, SĐT, mã CK..."/></label>
+        <select value={status} onChange={e=>{setPage(1);setStatus(e.target.value)}}>
           <option value="PENDING_REVIEW">Chờ duyệt</option><option value="APPROVED">Đã duyệt</option><option value="AMOUNT_MISMATCH">Sai số tiền</option><option value="REJECTED">Đã từ chối</option><option value="ALL">Tất cả</option>
         </select>
-        <button className="button" onClick={load}><RefreshCw size={15}/>Làm mới</button>
+        <button className="button" onClick={()=>load(1)}><RefreshCw size={15}/>Làm mới</button>
       </div>
     </header>
 
@@ -173,7 +177,7 @@ export default function DriverPointTopupsPage(){
         <td>{date(row.createdAt)}</td>
         <td>{row.status==='PENDING_REVIEW'||row.status==='AMOUNT_MISMATCH'?<div className="page-actions"><button className="button button-small" disabled={busy===row.id} onClick={()=>reject(row)}><XCircle size={13}/>Từ chối</button><button className="button button-small button-primary" disabled={busy===row.id} onClick={()=>approve(row)}><CheckCircle2 size={13}/>Duyệt</button></div>:'—'}</td>
       </tr>})}</tbody>
-    </table>{!loading&&!rows.length&&<div className="v14-empty">Chưa có yêu cầu nạp điểm phù hợp.</div>}{loading&&<div className="v14-empty">Đang tải yêu cầu...</div>}</div></section>
+    </table>{!loading&&!rows.length&&<div className="v14-empty">Chưa có yêu cầu nạp điểm phù hợp.</div>}{loading&&<div className="v14-empty">Đang tải yêu cầu...</div>}</div><Pagination pagination={pagination} loading={loading} onPageChange={load} label="yêu cầu nạp điểm"/></section>
 
     {adjustOpen&&<div className="modal-backdrop" role="presentation" onMouseDown={()=>!adjustBusy&&setAdjustOpen(false)}>
       <section className="modal driver-point-adjust-modal" role="dialog" aria-modal="true" onMouseDown={e=>e.stopPropagation()}>

@@ -3651,6 +3651,7 @@ img,svg{max-width:100%}
 .sidebar-shell,.content-area,.page-content,.future-page-head,.v14-page-head{min-width:0}
 .v14-table-wrap,.future-table-wrap{overflow:auto;max-width:100%}
 .v14-table-wrap table,.future-table-wrap table{min-width:760px}
+.data-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 2px 0;color:#757d88;font-size:12px;font-weight:700}.data-pagination>div{display:flex;align-items:center;gap:8px}.data-pagination .button{align-items:center;gap:3px}.data-pagination-loading{display:inline-flex;align-items:center;gap:5px;color:#d71920;white-space:nowrap}.data-pagination-loading svg{animation:pagination-spin .75s linear infinite}@keyframes pagination-spin{to{transform:rotate(360deg)}}@media(max-width:560px){.data-pagination{align-items:flex-start;flex-direction:column}.data-pagination>div{flex-wrap:wrap}}
 
 /* Global admin responsiveness */
 @media(max-width:1100px){

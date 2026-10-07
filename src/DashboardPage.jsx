@@ -69,14 +69,14 @@ export default function DashboardPage({ access }) {
       );
     } else if (canBookings && (!needAnalytics || !data)) {
       tasks.push(
-        coreApiRequest('/api/v7/admin/bookings?limit=80')
+        coreApiRequest('/api/v7/admin/bookings?limit=20')
           .then((value) => ({ key: 'bookings', value }))
       );
     }
 
     if (canDrivers) {
       tasks.push(
-        coreApiRequest('/api/v7/admin/drivers/live?limit=300')
+        coreApiRequest('/api/v7/admin/drivers/live?limit=20')
           .then((value) => ({ key: 'live', value }))
       );
     }

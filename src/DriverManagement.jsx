@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 
 import { coreApiRequest, openCorePrivateFile } from './coreApi.js';
+import Pagination, { PAGE_LIMIT, pageResult } from './Pagination.jsx';
 
 const STATUS_LABEL = {
   INCOMPLETE: 'Chưa hoàn tất',
@@ -694,24 +695,32 @@ export default function DriverManagement() {
   const [error, setError] = React.useState('');
   const [query, setQuery] = React.useState('');
   const [tab, setTab] = React.useState('ALL');
+  const [page, setPage] = React.useState(1);
+  const [pagination, setPagination] = React.useState({ page: 1, limit: PAGE_LIMIT, total: 0, totalPages: 1 });
   const [selectedId, setSelectedId] = React.useState('');
   const [detail, setDetail] = React.useState(null);
   const [detailLoading, setDetailLoading] = React.useState(false);
   const [reviewing, setReviewing] = React.useState(false);
 
-  const loadRows = React.useCallback(async () => {
+  const loadRows = React.useCallback(async (requestedPage = page) => {
     setLoading(true);
     setError('');
 
     try {
-      const data = await coreApiRequest('/api/kyc/admin/drivers');
-      setRows(Array.isArray(data) ? data : []);
+      const statuses = tab === 'WAITING' ? 'SUBMITTED,UNDER_REVIEW' : tab === 'ALL' ? '' : tab;
+      const params = new URLSearchParams({ page: String(requestedPage), limit: String(PAGE_LIMIT) });
+      if (statuses) params.set('status', statuses);
+      if (query.trim()) params.set('q', query.trim());
+      const result = pageResult(await coreApiRequest(`/api/kyc/admin/drivers?${params}`));
+      setRows(result.items);
+      setPagination(result.pagination);
+      setPage(result.pagination.page);
     } catch (error) {
       setError(error.message || String(error));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, query, tab]);
 
   React.useEffect(() => {
     loadRows();
@@ -884,7 +893,7 @@ export default function DriverManagement() {
           <button type="button" className="button" onClick={exportCsv}>
             <Download size={16} /> Xuất CSV
           </button>
-          <button type="button" className="button button-primary" onClick={loadRows}>
+          <button type="button" className="button button-primary" onClick={()=>loadRows(page)}>
             <RefreshCw size={16} className={loading ? 'spin' : ''} /> Làm mới
           </button>
         </div>
@@ -905,7 +914,7 @@ export default function DriverManagement() {
               key={key}
               type="button"
               className={tab === key ? 'active' : ''}
-              onClick={() => setTab(key)}
+              onClick={() => { setPage(1); setTab(key); }}
             >
               {title}
               <span>{count}</span>
@@ -919,7 +928,7 @@ export default function DriverManagement() {
             <input
               type="search"
               value={query}
-              onChange={event => setQuery(event.target.value)}
+              onChange={event => { setPage(1); setQuery(event.target.value); }}
               placeholder="Tìm tên tài xế, số điện thoại, email, Driver ID..."
             />
           </label>
@@ -1012,6 +1021,8 @@ export default function DriverManagement() {
           </div>
         )}
       </section>
+
+      <Pagination pagination={pagination} loading={loading} onPageChange={loadRows} label="tài xế" />
 
       <DriverDrawer
         driverId={selectedId}

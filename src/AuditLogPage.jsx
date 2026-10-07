@@ -5,6 +5,7 @@ import {
   LockKeyhole, Eye, X, SlidersHorizontal, Clock3
 } from 'lucide-react';
 import { adminApiRequest } from './adminApi.js';
+import Pagination,{PAGE_LIMIT} from './Pagination.jsx';
 
 const ACTION_META = {
   ADMIN_ACCOUNT_CREATE: ['Tạo tài khoản nội bộ', 'create', UserPlus],
@@ -115,11 +116,13 @@ export default function AuditLogPage(){
   const [error,setError]=React.useState('');
   const [selected,setSelected]=React.useState(null);
   const [filters,setFilters]=React.useState({q:'',actorId:'',action:'',from:'',to:''});
+  const [page,setPage]=React.useState(1);
+  const [pagination,setPagination]=React.useState({page:1,limit:PAGE_LIMIT,total:0,totalPages:1});
 
-  const load=React.useCallback(async()=>{
+  const load=React.useCallback(async(requestedPage=page)=>{
     setLoading(true);setError('');
     try{
-      const params=new URLSearchParams({limit:'250'});
+      const params=new URLSearchParams({limit:String(PAGE_LIMIT),page:String(requestedPage)});
       if(filters.q.trim())params.set('q',filters.q.trim());
       if(filters.actorId)params.set('actorId',filters.actorId);
       if(filters.action)params.set('action',filters.action);
@@ -128,34 +131,38 @@ export default function AuditLogPage(){
       const result=await adminApiRequest(`/admin-audit?${params.toString()}`);
       setRows(Array.isArray(result.logs)?result.logs:[]);
       setActors(Array.isArray(result.actors)?result.actors:[]);
+      const meta=result.pagination||{};
+      setPagination({page:Number(meta.page||requestedPage),limit:Number(meta.limit||PAGE_LIMIT),total:Number(meta.total||0),totalPages:Math.max(1,Number(meta.totalPages||1))});
+      setPage(Number(meta.page||requestedPage));
     }catch(err){setError(err.message)}finally{setLoading(false)}
-  },[filters]);
+  },[filters,page]);
 
   React.useEffect(()=>{const id=setTimeout(load,180);return()=>clearTimeout(id)},[load]);
   const actions=[...new Set(rows.map(x=>x.action).filter(Boolean))].sort();
 
   return <div className="audit-page">
-    <header className="page-intro"><div><h1>Lịch sử thao tác</h1><p>Theo dõi các thay đổi do tài khoản nội bộ thực hiện. Nhật ký được lưu trực tiếp trong MongoDB và chỉ người có quyền mới xem được.</p></div><div className="page-actions"><button type="button" className="button" onClick={load}><RefreshCw size={16}/> Làm mới</button></div></header>
+    <header className="page-intro"><div><h1>Lịch sử thao tác</h1><p>Theo dõi các thay đổi do tài khoản nội bộ thực hiện. Nhật ký được lưu trực tiếp trong MongoDB và chỉ người có quyền mới xem được.</p></div><div className="page-actions"><button type="button" className="button" onClick={()=>load(page)}><RefreshCw size={16}/> Làm mới</button></div></header>
 
     <section className="card audit-filter-card">
       <div className="audit-filter-title"><SlidersHorizontal size={18}/><div><b>Bộ lọc nhật ký</b><small>Tìm theo tài khoản, thao tác, đối tượng hoặc thời gian.</small></div></div>
       <div className="audit-filter-grid">
-        <label className="audit-search"><Search size={16}/><input value={filters.q} onChange={e=>setFilters({...filters,q:e.target.value})} placeholder="Tên người thao tác, đối tượng, IP..."/></label>
-        <select aria-label="Tài khoản thực hiện" value={filters.actorId} onChange={e=>setFilters({...filters,actorId:e.target.value})}><option value="">Tất cả tài khoản</option>{actors.map(a=><option value={a.id} key={a.id}>{a.fullName} {a.phone?`· ${a.phone}`:''}</option>)}</select>
-        <select aria-label="Loại thao tác" value={filters.action} onChange={e=>setFilters({...filters,action:e.target.value})}><option value="">Tất cả thao tác</option>{actions.map(a=><option value={a} key={a}>{actionMeta(a)[0]}</option>)}</select>
-        <label className="audit-date"><span>Từ ngày</span><input type="date" value={filters.from} onChange={e=>setFilters({...filters,from:e.target.value})}/></label>
-        <label className="audit-date"><span>Đến ngày</span><input type="date" value={filters.to} onChange={e=>setFilters({...filters,to:e.target.value})}/></label>
+        <label className="audit-search"><Search size={16}/><input value={filters.q} onChange={e=>{setPage(1);setFilters({...filters,q:e.target.value})}} placeholder="Tên người thao tác, đối tượng, IP..."/></label>
+        <select aria-label="Tài khoản thực hiện" value={filters.actorId} onChange={e=>{setPage(1);setFilters({...filters,actorId:e.target.value})}}><option value="">Tất cả tài khoản</option>{actors.map(a=><option value={a.id} key={a.id}>{a.fullName} {a.phone?`· ${a.phone}`:''}</option>)}</select>
+        <select aria-label="Loại thao tác" value={filters.action} onChange={e=>{setPage(1);setFilters({...filters,action:e.target.value})}}><option value="">Tất cả thao tác</option>{actions.map(a=><option value={a} key={a}>{actionMeta(a)[0]}</option>)}</select>
+        <label className="audit-date"><span>Từ ngày</span><input type="date" value={filters.from} onChange={e=>{setPage(1);setFilters({...filters,from:e.target.value})}}/></label>
+        <label className="audit-date"><span>Đến ngày</span><input type="date" value={filters.to} onChange={e=>{setPage(1);setFilters({...filters,to:e.target.value})}}/></label>
       </div>
     </section>
 
     {error&&<section className="card form-error">{error}</section>}
     <section className="card data-card audit-log-card">
-      <header className="card-heading"><div><h2>Nhật ký hệ thống</h2><p>{loading?'Đang tải...':`${rows.length} thao tác gần nhất phù hợp bộ lọc`}</p></div><span className="audit-live-note"><span></span> MongoDB audit_logs</span></header>
+      <header className="card-heading"><div><h2>Nhật ký hệ thống</h2><p>{loading?'Đang tải...':`${pagination.total} thao tác phù hợp bộ lọc`}</p></div><span className="audit-live-note"><span></span> MongoDB audit_logs</span></header>
       <div className="table-scroll"><table className="audit-table"><thead><tr><th>Thời gian</th><th>Tài khoản thực hiện</th><th>Thao tác</th><th>Đối tượng</th><th>Nội dung</th><th>IP</th><th></th></tr></thead>
         <tbody>{loading?<tr><td colSpan="7" className="empty-table">Đang tải lịch sử thao tác...</td></tr>:rows.map(row=>{
           const [label,tone,Icon]=actionMeta(row.action);
           return <tr key={row._id||row.id}><td><span className="audit-time"><Clock3 size={14}/>{dateTime(row.createdAt)}</span></td><td><div className="person compact"><span className="person-avatar">{initials(row.actor?.fullName)}</span><span><b>{row.actor?.fullName||'Không xác định'}</b><small>{row.actor?.phone||row.actor?.email||'Tài khoản cũ/đã xóa'}</small></span></div></td><td><span className={`audit-action ${tone}`}><Icon size={14}/>{label}</span></td><td><b className="audit-entity">{ENTITY_LABELS[row.entityType]||row.entityType||'—'}</b><small className="audit-entity-id">{entityName(row)}</small></td><td><span className="audit-summary">{summary(row)}</span></td><td><code className="audit-ip">{row.ip||'—'}</code></td><td><button type="button" className="icon-button" title="Xem chi tiết" onClick={()=>setSelected(row)}><Eye size={16}/></button></td></tr>
         })}{!loading&&!rows.length&&<tr><td colSpan="7" className="empty-table">Chưa có lịch sử thao tác phù hợp.</td></tr>}</tbody></table></div>
+      <Pagination pagination={pagination} loading={loading} onPageChange={load} label="thao tác"/>
     </section>
     <DetailModal row={selected} onClose={()=>setSelected(null)}/>
   </div>;

@@ -56,8 +56,8 @@ export default function MatchingControlPage({access}){
       const [p,s,q,l]=await Promise.all([
         coreApiRequest('/api/v8/admin/matching/policy'),
         coreApiRequest('/api/v8/admin/matching/stats'),
-        coreApiRequest('/api/v8/admin/matching/queue?limit=50'),
-        coreApiRequest('/api/v8/admin/matching/logs?limit=60'),
+        coreApiRequest('/api/v8/admin/matching/queue?limit=20'),
+        coreApiRequest('/api/v8/admin/matching/logs?limit=20'),
       ]);
       setPolicy(p.policy); setPresets(p.presets||{}); setStats(s); setQueue(Array.isArray(q)?q:[]); setLogs(l||{adminLogs:[],offers:[]});
       setSelectedBookingId(current=>current && q.some(x=>x.id===current) ? current : (q[0]?.id||''));

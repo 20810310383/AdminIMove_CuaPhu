@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { coreApiRequest } from './coreApi.js';
 import { hasPermission } from './adminApi.js';
+import Pagination, { PAGE_LIMIT, pageResult } from './Pagination.jsx';
 
 function dateTime(value) {
   if (!value) return '—';
@@ -37,6 +38,8 @@ export default function SupportCenterPage({ access }) {
   const [messages, setMessages] = React.useState([]);
   const [query, setQuery] = React.useState('');
   const [status, setStatus] = React.useState('ALL');
+  const [page, setPage] = React.useState(1);
+  const [pagination, setPagination] = React.useState({ page: 1, limit: PAGE_LIMIT, total: 0, totalPages: 1 });
   const [loadingList, setLoadingList] = React.useState(true);
   const [loadingChat, setLoadingChat] = React.useState(false);
   const [sending, setSending] = React.useState(false);
@@ -48,14 +51,17 @@ export default function SupportCenterPage({ access }) {
   const canAssign = hasPermission(access, 'support.assign');
   const canClose = hasPermission(access, 'support.close');
 
-  const loadList = React.useCallback(async ({ silent = false } = {}) => {
+  const loadList = React.useCallback(async ({ silent = false, requestedPage = page } = {}) => {
     if (!silent) setLoadingList(true);
     try {
-      const params = new URLSearchParams({ limit: '100', status });
+      const params = new URLSearchParams({ limit: String(PAGE_LIMIT), page: String(requestedPage), status });
       if (query.trim()) params.set('q', query.trim());
       const data = await coreApiRequest(`/api/admin-support/conversations?${params.toString()}`);
-      const next = Array.isArray(data) ? data : [];
+      const result = pageResult(data);
+      const next = result.items;
       setRows(next);
+      setPagination(result.pagination);
+      setPage(result.pagination.page);
       setError('');
       setSelectedId((current) => {
         if (current && next.some((x) => x.id === current)) return current;
@@ -66,7 +72,7 @@ export default function SupportCenterPage({ access }) {
     } finally {
       if (!silent) setLoadingList(false);
     }
-  }, [query, status]);
+  }, [query, status, page]);
 
   const loadChat = React.useCallback(async (id, { silent = false } = {}) => {
     if (!id) {
@@ -152,15 +158,15 @@ export default function SupportCenterPage({ access }) {
     <div className="support-layout">
       <aside className="card support-inbox">
         <header className="support-inbox-head">
-          <div><b>Hộp thư hỗ trợ</b><small>{rows.length} hội thoại</small></div>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Trạng thái hội thoại">
+          <div><b>Hộp thư hỗ trợ</b><small>{pagination.total} hội thoại</small></div>
+          <select value={status} onChange={(e) => { setPage(1); setStatus(e.target.value); }} aria-label="Trạng thái hội thoại">
             <option value="ALL">Tất cả</option>
             <option value="OPEN">Đang mở</option>
             <option value="CLOSED">Đã đóng</option>
           </select>
         </header>
-        <form className="support-search" onSubmit={(e) => { e.preventDefault(); loadList(); }}>
-          <Search size={16}/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Tên, SĐT, email..."/>
+        <form className="support-search" onSubmit={(e) => { e.preventDefault(); loadList({ requestedPage: 1 }); }}>
+          <Search size={16}/><input value={query} onChange={(e) => { setPage(1); setQuery(e.target.value); }} placeholder="Tiêu đề hoặc nội dung..."/>
         </form>
         <div className="support-thread-list">
           {loadingList && !rows.length && <div className="support-empty"><RefreshCw className="spin" size={20}/><span>Đang lấy hội thoại...</span></div>}
@@ -175,6 +181,7 @@ export default function SupportCenterPage({ access }) {
             <span className="support-thread-meta"><small>{dateTime(row.lastMessageAt || row.updatedAt)}</small>{Number(row.unread || 0) > 0 && <b>{row.unread}</b>}</span>
           </button>)}
         </div>
+        <Pagination pagination={pagination} loading={loadingList} onPageChange={(nextPage) => loadList({ requestedPage: nextPage })} label="hội thoại"/>
       </aside>
 
       <section className="card support-chat-panel">

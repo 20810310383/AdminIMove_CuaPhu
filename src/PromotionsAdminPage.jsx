@@ -2,6 +2,7 @@ import React from 'react';
 import { BadgePercent, Plus, RefreshCw, Save, Pencil, Power } from 'lucide-react';
 import { coreApiRequest } from './coreApi.js';
 import { REQUIRED_SERVICE_CODES, SERVICE_LABELS, formatVnd } from './servicePricingModel.js';
+import Pagination, { PAGE_LIMIT, pageResult } from './Pagination.jsx';
 
 const initial = {
   code: '', name: '', status: 'ACTIVE', discountType: 'PERCENT', discountValue: 10,
@@ -33,6 +34,8 @@ function toForm(row) {
 
 export default function PromotionsAdminPage() {
   const [rows, setRows] = React.useState([]);
+  const [page, setPage] = React.useState(1);
+  const [pagination, setPagination] = React.useState({ page: 1, limit: PAGE_LIMIT, total: 0, totalPages: 1 });
   const [form, setForm] = React.useState(initial);
   const [open, setOpen] = React.useState(false);
   const [editingCode, setEditingCode] = React.useState(null);
@@ -40,13 +43,16 @@ export default function PromotionsAdminPage() {
   const [saveError, setSaveError] = React.useState('');
   const [saving, setSaving] = React.useState(false);
 
-  const load = React.useCallback(async () => {
+  const load = React.useCallback(async (requestedPage = page) => {
     try {
-      const data = await coreApiRequest('/api/v14/admin/promotions');
-      setRows(data.promotions || []);
+      const data = await coreApiRequest(`/api/v14/admin/promotions?limit=${PAGE_LIMIT}&page=${requestedPage}`);
+      const result = pageResult(data, 'promotions');
+      setRows(result.items);
+      setPagination(result.pagination);
+      setPage(result.pagination.page);
       setError('');
     } catch (e) { setError(e.message); }
-  }, []);
+  }, [page]);
 
   React.useEffect(() => { load(); }, [load]);
 
@@ -113,7 +119,7 @@ export default function PromotionsAdminPage() {
         <p>Mã được Backend kiểm tra lại khi tạo booking; app không tự quyết định số tiền giảm.</p>
       </div>
       <div className="page-actions">
-        <button className="button" onClick={load}><RefreshCw size={15}/>Làm mới</button>
+        <button className="button" onClick={() => load(1)}><RefreshCw size={15}/>Làm mới</button>
         <button className="button button-primary" onClick={createNew}><Plus size={15}/>Tạo mã</button>
       </div>
     </header>
@@ -134,7 +140,7 @@ export default function PromotionsAdminPage() {
             <button className="button" onClick={() => toggleStatus(row)}><Power size={14}/>{row.status === 'ACTIVE' ? 'Tắt mã' : 'Bật mã'}</button>
           </div></td>
         </tr>)}</tbody>
-      </table></div>
+      </table></div><Pagination pagination={pagination} onPageChange={load} label="mã khuyến mãi"/>
     </section>
 
     {open && <div className="v14-modal-backdrop" onMouseDown={() => setOpen(false)}>
