@@ -1,0 +1,337 @@
+import { CORE_BACKEND_URL, coreUrl, fetchWithTimeout } from './apiRuntime.js';
+
+const ACCESS_KEY = 'imove_core_admin_access_token';
+const USER_KEY = 'imove_core_admin_user';
+const SESSION_EXPIRY_KEY = 'imove_core_admin_session_expires_at';
+
+function parseExpiry(value) {
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date.getTime() : 0;
+}
+
+function tokenExpiry(token) {
+  try {
+    const encoded = String(token || '').split('.')[1];
+    if (!encoded) return 0;
+    const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(atob(base64));
+    return Number(payload?.exp || 0) * 1000;
+  } catch (_) {
+    return 0;
+  }
+}
+
+export function coreAdminSessionExpiresAt() {
+  const stored = Number(localStorage.getItem(SESSION_EXPIRY_KEY) || 0);
+  if (stored > 0) return stored;
+  return tokenExpiry(localStorage.getItem(ACCESS_KEY));
+}
+
+export function expireCoreAdminSession() {
+  clearCoreAdminSession();
+  window.dispatchEvent(new Event('imove:admin-auth-expired'));
+}
+
+export function coreAdminAccessToken() {
+  const token = localStorage.getItem(ACCESS_KEY) || '';
+  if (!token) return '';
+  const expiresAt = coreAdminSessionExpiresAt();
+  if (expiresAt && expiresAt <= Date.now()) {
+    expireCoreAdminSession();
+    return '';
+  }
+  return token;
+}
+
+export function hasCoreAdminSession() {
+  return Boolean(coreAdminAccessToken());
+}
+
+export function currentCoreAdmin() {
+  try {
+    return JSON.parse(localStorage.getItem(USER_KEY) || 'null');
+  } catch (_) {
+    return null;
+  }
+}
+
+export function clearCoreAdminSession() {
+  localStorage.removeItem(ACCESS_KEY);
+  localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(SESSION_EXPIRY_KEY);
+  localStorage.removeItem('imove_admin_session');
+}
+
+function healthLooksLikeCore(payload) {
+  if (!payload || typeof payload !== 'object') return false;
+  const service = String(payload.service || payload.name || '').trim().toLowerCase();
+  return Boolean(
+    payload.ok === true ||
+    payload.backend === true ||
+    payload.components?.api?.ok === true ||
+    service === 'th79_imove_core' ||
+    service === 'th79 imove api' ||
+    service.includes('imove')
+  );
+}
+
+async function probeLive(refresh = false) {
+  const response = await fetchWithTimeout(
+    coreUrl('/live'),
+    {
+      cache: 'no-store',
+      headers: refresh ? { 'Cache-Control': 'no-cache' } : undefined,
+    },
+    10000
+  );
+
+  const payload = await response.json().catch(() => ({}));
+  return { response, payload };
+}
+
+async function probeHealth(refresh = false) {
+  const response = await fetchWithTimeout(
+    coreUrl('/health'),
+    {
+      cache: 'no-store',
+      headers: refresh ? { 'Cache-Control': 'no-cache' } : undefined,
+    },
+    30000
+  );
+
+  const payload = await response.json().catch(() => ({}));
+  return { response, payload };
+}
+
+export async function getCoreConnection(refresh = false) {
+  // /live chỉ kiểm tra process HTTP nên nhanh hơn /health (Mongo/metrics/FCM...).
+  // Nếu /live OK thì Admin được phép hoạt động ngay; ready=false của /health
+  // không được coi là mất Core Backend.
+  try {
+    const { response, payload } = await probeLive(refresh);
+    if (response.ok) {
+      return {
+        connected: true,
+        configured: true,
+        baseUrl: CORE_BACKEND_URL,
+        source: 'DIRECT_PUBLIC_BACKEND_LIVE',
+        status: response.status,
+        health: payload,
+        message: 'Core Backend đã kết nối.',
+      };
+    }
+  } catch (_) {
+    // Fallback sang /health bên dưới.
+  }
+
+  try {
+    const { response, payload } = await probeHealth(refresh);
+    const connected = response.ok && healthLooksLikeCore(payload);
+
+    return {
+      connected,
+      configured: true,
+      baseUrl: CORE_BACKEND_URL,
+      source: 'DIRECT_PUBLIC_BACKEND_HEALTH',
+      status: response.status,
+      health: payload,
+      ready: payload?.ready === true,
+      message: connected
+        ? 'Core Backend đã kết nối.'
+        : (payload?.message || `Core Backend phản hồi HTTP ${response.status}.`),
+    };
+  } catch (error) {
+    return {
+      connected: false,
+      configured: true,
+      baseUrl: CORE_BACKEND_URL,
+      source: 'DIRECT_PUBLIC_BACKEND',
+      message: error?.name === 'AbortError'
+        ? 'Core Backend phản hồi quá thời gian (30 giây).'
+        : `Không kết nối được Core Backend: ${error?.message || String(error)}`,
+    };
+  }
+}
+
+export async function coreAdminLogin({ login, password }) {
+  let response;
+  try {
+    response = await fetchWithTimeout(
+      coreUrl('/api/admin-auth/login'),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ login, password }),
+        cache: 'no-store',
+      },
+      30000
+    );
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error('Core Backend phản hồi quá thời gian (30 giây).');
+    }
+    throw new Error(`Không kết nối được Core Backend: ${error?.message || String(error)}`);
+  }
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(payload?.message || `Đăng nhập thất bại (${response.status})`);
+  }
+
+  if (!payload?.accessToken) {
+    throw new Error('Backend không trả Access Token quản trị.');
+  }
+
+  const expiresAt = parseExpiry(payload.expiresAt) || (Date.now() + Number(payload.expiresInSeconds || 0) * 1000);
+  if (!expiresAt || expiresAt <= Date.now()) {
+    throw new Error('Backend trả về thời hạn phiên quản trị không hợp lệ.');
+  }
+
+  localStorage.setItem(ACCESS_KEY, payload.accessToken);
+  localStorage.setItem(USER_KEY, JSON.stringify(payload.user || null));
+  localStorage.setItem(SESSION_EXPIRY_KEY, String(expiresAt));
+  localStorage.setItem('imove_admin_session', '1');
+
+  return payload;
+}
+
+export async function coreAdminLogout() {
+  const token = localStorage.getItem(ACCESS_KEY) || '';
+  clearCoreAdminSession();
+  if (!token) return;
+  try {
+    await fetchWithTimeout(
+      coreUrl('/api/admin-auth/logout'),
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      },
+      8000,
+    );
+  } catch (_) {
+    // The client session was removed even if an offline server cannot record logout.
+  }
+}
+
+export async function validateCoreAdminSession() {
+  const token = coreAdminAccessToken();
+  if (!token) throw new Error('Phiên quản trị đã hết hạn.');
+
+  let response;
+  try {
+    response = await fetchWithTimeout(
+      coreUrl('/api/admin-auth/me'),
+      { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' },
+      10000,
+    );
+  } catch (error) {
+    throw new Error(`Không thể kiểm tra phiên quản trị: ${error?.message || String(error)}`);
+  }
+
+  const payload = await response.json().catch(() => ({}));
+  if (response.status === 401 || response.status === 403) {
+    expireCoreAdminSession();
+  }
+  if (!response.ok) {
+    throw new Error(payload?.message || `Không thể kiểm tra phiên quản trị (${response.status})`);
+  }
+
+  const expiresAt = parseExpiry(payload?.expiresAt);
+  if (expiresAt > Date.now()) localStorage.setItem(SESSION_EXPIRY_KEY, String(expiresAt));
+  return payload;
+}
+
+export async function coreApiRequest(path, options = {}) {
+  const token = coreAdminAccessToken();
+
+  if (!token) {
+    throw new Error('Chưa đăng nhập Core Admin.');
+  }
+
+  const headers = {
+    ...(options.headers || {}),
+    Authorization: `Bearer ${token}`,
+  };
+
+  if (options.body && !(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  const method = String(options.method || 'GET').toUpperCase();
+  const defaultTimeout = method === 'GET' ? 60000 : 35000;
+  const routeTimeout = String(path).startsWith('/api/v14/admin/analytics')
+    ? 120000
+    : defaultTimeout;
+
+  let response;
+  try {
+    response = await fetchWithTimeout(
+      coreUrl(path),
+      {
+        ...options,
+        headers,
+        cache: 'no-store',
+      },
+      Number(options.timeoutMs || routeTimeout)
+    );
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error(`Core Backend phản hồi quá thời gian khi gọi ${path}.`);
+    }
+    throw new Error(`Không kết nối được Core Backend: ${error?.message || String(error)}`);
+  }
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (response.status === 401) {
+    expireCoreAdminSession();
+  }
+
+  if (!response.ok) {
+    const missing = Array.isArray(payload?.missing)
+      ? `\n• ${payload.missing.join('\n• ')}`
+      : '';
+    throw new Error((payload?.message || `API lỗi ${response.status}`) + missing);
+  }
+
+  return payload;
+}
+
+export async function openCorePrivateFile(fileId) {
+  const token = coreAdminAccessToken();
+  if (!token) throw new Error('Chưa đăng nhập Core Admin.');
+
+  const popup = window.open('', '_blank');
+  try {
+    const response = await fetchWithTimeout(
+      coreUrl(`/api/kyc/files/${encodeURIComponent(fileId)}`),
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      },
+      60000
+    );
+
+    if (response.status === 401) {
+      expireCoreAdminSession();
+    }
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload?.message || `Không thể mở file (${response.status})`);
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    if (popup) popup.location.href = url;
+    else window.open(url, '_blank', 'noopener,noreferrer');
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (error) {
+    if (popup) popup.close();
+    throw error;
+  }
+}
+
+export const CORE_API_URL = CORE_BACKEND_URL;
