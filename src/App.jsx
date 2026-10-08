@@ -26,8 +26,8 @@ import CommerceOrdersPage from './CommerceOrdersPage.jsx';
 import EnterpriseSettingsPage from './SettingsPage.jsx';
 import SupportCenterPage from './SupportCenterPage.jsx';
 import { PermissionDenied } from './AdminPageState.jsx';
-import { adminApiRequest, adminAccessToken, hasPermission } from './adminApi.js';
-import { coreAdminLogin, coreAdminLogout, hasCoreAdminSession, currentCoreAdmin, coreAdminSessionExpiresAt, expireCoreAdminSession, validateCoreAdminSession } from './coreApi.js';
+import { adminApiRequest, hasPermission } from './adminApi.js';
+import { coreAdminLogin, coreAdminLogout, hasCoreAdminSession, currentCoreAdmin, coreAdminSessionExpiresAt, expireCoreAdminSession, validateCoreAdminSession, coreApiRequest } from './coreApi.js';
 import {
   Bell, Search, Menu, X, LayoutDashboard, Users, Car, Route,
   WalletCards, ChartNoAxesCombined, Settings, LogOut, ArrowUpRight,
@@ -42,19 +42,11 @@ const defaultSettings={companyName:'Công ty TNHH Đầu tư T&H 79',brandName:'
 const dbCache={customers:[],drivers:[],trips:[],payments:[],revenue:[],settings:{...defaultSettings}};
 
 async function apiRequest(path,options={}){
-  const token=adminAccessToken();
-  const response=await fetch(`/api${path}`,{
-    headers:{
-      'Content-Type':'application/json',
-      ...(token?{Authorization:`Bearer ${token}`}:{ }),
-      ...(options.headers||{})
-    },
-    ...options
-  });
-  const payload=await response.json().catch(()=>({}));
-  if(response.status===401) expireCoreAdminSession();
-  if(!response.ok) throw new Error(payload?.message||`API lỗi ${response.status}`);
-  return payload;
+  // Vite forwards relative /api locally, but the production Admin is a static
+  // site and has no gateway at its own origin.  Always use the configured Core
+  // URL so bootstrap, Driver list and legacy admin actions read the same DB in
+  // both environments.
+  return coreApiRequest(`/api${path}`, options);
 }
 
 async function syncFromServer(){
@@ -1221,13 +1213,14 @@ function AdminApp(){
   const loadDatabase=React.useCallback(async()=>{
     setDbState({loading:true,error:''});
     try{
-      // Chỉ chờ RBAC để mở giao diện. Bootstrap MongoDB lớn chạy nền,
-      // tránh giữ người dùng ở màn hình "Đang kết nối" quá lâu.
+      // Do not render an empty dashboard when production cannot reach Core.
+      // The previous background-only bootstrap left every cached collection
+      // empty, which looked like the system had no drivers or bookings.
       await loadAdminAccess();
+      await syncFromServer();
       setDbState({loading:false,error:''});
-      syncFromServer().catch(error=>console.warn('Bootstrap MongoDB chạy nền thất bại:',error.message));
     } catch(error){
-      setDbState({loading:false,error:error.message||'Không thể tải quyền quản trị'});
+      setDbState({loading:false,error:error.message||'Không thể tải dữ liệu từ Core Backend'});
     }
   },[loadAdminAccess]);
 
