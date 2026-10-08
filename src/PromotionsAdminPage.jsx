@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { BadgePercent, Plus, RefreshCw, Save, Pencil, Power } from 'lucide-react';
 import { coreApiRequest } from './coreApi.js';
 import { REQUIRED_SERVICE_CODES, SERVICE_LABELS, formatVnd } from './servicePricingModel.js';
@@ -143,31 +144,33 @@ export default function PromotionsAdminPage() {
       </table></div><Pagination pagination={pagination} onPageChange={load} label="mã khuyến mãi"/>
     </section>
 
-    {open && <div className="v14-modal-backdrop" onMouseDown={() => setOpen(false)}>
-      <form className="v14-modal wide" onMouseDown={e => e.stopPropagation()} onSubmit={save}>
+    {open && createPortal(<div className="v14-modal-backdrop promotion-editor-backdrop" onMouseDown={() => !saving && setOpen(false)}>
+      <form className="v14-modal wide promotion-editor-modal" onMouseDown={e => e.stopPropagation()} onSubmit={save}>
         <header><div><h2>{editingCode ? 'Chỉnh sửa khuyến mãi' : 'Tạo mã khuyến mãi'}</h2><p>Thiết lập phạm vi áp dụng và giới hạn sử dụng.</p></div><button type="button" onClick={() => setOpen(false)}>×</button></header>
-        <div className="v14-form-grid">
-          <label>Mã<input required disabled={Boolean(editingCode)} value={form.code} onChange={e => setForm({...form, code:e.target.value.toUpperCase()})}/></label>
-          <label>Tên<input required value={form.name} onChange={e => setForm({...form, name:e.target.value})}/></label>
-          <label>Trạng thái<select value={form.status} onChange={e => setForm({...form, status:e.target.value})}><option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option></select></label>
-          <label>Kiểu giảm<select value={form.discountType} onChange={e => setForm({...form, discountType:e.target.value})}><option value="PERCENT">Phần trăm</option><option value="FIXED">Số tiền</option></select></label>
-          <label>Giá trị<input type="number" min="0" value={form.discountValue} onChange={e => setForm({...form, discountValue:Number(e.target.value)})}/></label>
-          <label>Giảm tối đa<input type="number" min="0" value={form.maxDiscount} onChange={e => setForm({...form, maxDiscount:Number(e.target.value)})}/></label>
-          <label>Đơn tối thiểu<input type="number" min="0" value={form.minOrderAmount} onChange={e => setForm({...form, minOrderAmount:Number(e.target.value)})}/></label>
-          <label>Lượt toàn hệ thống<input type="number" min="0" value={form.totalUsageLimit} onChange={e => setForm({...form, totalUsageLimit:Number(e.target.value)})}/></label>
-          <label>Lượt mỗi User<input type="number" min="0" value={form.perUserLimit} onChange={e => setForm({...form, perUserLimit:Number(e.target.value)})}/></label>
-          <label>Bắt đầu<input type="datetime-local" value={form.startAt} onChange={e => setForm({...form, startAt:e.target.value})}/></label>
-          <label>Kết thúc<input type="datetime-local" value={form.endAt} onChange={e => setForm({...form, endAt:e.target.value})}/></label>
+        <div className="promotion-editor-scroll">
+          <div className="v14-form-grid">
+            <label>Mã<input required disabled={Boolean(editingCode)} value={form.code} onChange={e => setForm({...form, code:e.target.value.toUpperCase()})}/></label>
+            <label>Tên<input required value={form.name} onChange={e => setForm({...form, name:e.target.value})}/></label>
+            <label>Trạng thái<select value={form.status} onChange={e => setForm({...form, status:e.target.value})}><option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option></select></label>
+            <label>Kiểu giảm<select value={form.discountType} onChange={e => setForm({...form, discountType:e.target.value})}><option value="PERCENT">Phần trăm</option><option value="FIXED">Số tiền</option></select></label>
+            <label>Giá trị<input type="number" min="0" value={form.discountValue} onChange={e => setForm({...form, discountValue:Number(e.target.value)})}/></label>
+            <label>Giảm tối đa<input type="number" min="0" value={form.maxDiscount} onChange={e => setForm({...form, maxDiscount:Number(e.target.value)})}/></label>
+            <label>Đơn tối thiểu<input type="number" min="0" value={form.minOrderAmount} onChange={e => setForm({...form, minOrderAmount:Number(e.target.value)})}/></label>
+            <label>Lượt toàn hệ thống<input type="number" min="0" value={form.totalUsageLimit} onChange={e => setForm({...form, totalUsageLimit:Number(e.target.value)})}/></label>
+            <label>Lượt mỗi User<input type="number" min="0" value={form.perUserLimit} onChange={e => setForm({...form, perUserLimit:Number(e.target.value)})}/></label>
+            <label>Bắt đầu<input type="datetime-local" value={form.startAt} onChange={e => setForm({...form, startAt:e.target.value})}/></label>
+            <label>Kết thúc<input type="datetime-local" value={form.endAt} onChange={e => setForm({...form, endAt:e.target.value})}/></label>
+          </div>
+          <div className="v163-audience-box">
+            <label>Phạm vi cấp mã<select value={form.audienceType} onChange={e => setForm({...form,audienceType:e.target.value})}><option value="ALL">Toàn hệ thống</option><option value="USERS">Chỉ User được chọn</option></select></label>
+            {form.audienceType === 'USERS' && <label>User ID hoặc số điện thoại<textarea rows="4" placeholder="Mỗi dòng 1 User ID hoặc SĐT" value={form.targetUsersText} onChange={e => setForm({...form,targetUsersText:e.target.value})}/><small>Có thể nhập nhiều User, cách nhau bằng xuống dòng, dấu phẩy hoặc dấu chấm phẩy.</small></label>}
+          </div>
+          <fieldset className="v14-service-checks"><legend>Dịch vụ áp dụng</legend>{REQUIRED_SERVICE_CODES.map(code => <label key={code}><input type="checkbox" checked={form.serviceCodes.includes(code)} onChange={e => setForm({...form, serviceCodes:e.target.checked ? [...new Set([...form.serviceCodes,code])] : form.serviceCodes.filter(x => x !== code)})}/>{SERVICE_LABELS[code]}</label>)}</fieldset>
+          <label className="v14-check"><input type="checkbox" checked={form.newCustomerOnly} onChange={e => setForm({...form, newCustomerOnly:e.target.checked})}/>Chỉ khách hàng mới</label>
+          {saveError && <div className="v73-alert">{saveError}</div>}
         </div>
-        <div className="v163-audience-box">
-          <label>Phạm vi cấp mã<select value={form.audienceType} onChange={e => setForm({...form,audienceType:e.target.value})}><option value="ALL">Toàn hệ thống</option><option value="USERS">Chỉ User được chọn</option></select></label>
-          {form.audienceType === 'USERS' && <label>User ID hoặc số điện thoại<textarea rows="4" placeholder="Mỗi dòng 1 User ID hoặc SĐT" value={form.targetUsersText} onChange={e => setForm({...form,targetUsersText:e.target.value})}/><small>Có thể nhập nhiều User, cách nhau bằng xuống dòng, dấu phẩy hoặc dấu chấm phẩy.</small></label>}
-        </div>
-        <fieldset className="v14-service-checks"><legend>Dịch vụ áp dụng</legend>{REQUIRED_SERVICE_CODES.map(code => <label key={code}><input type="checkbox" checked={form.serviceCodes.includes(code)} onChange={e => setForm({...form, serviceCodes:e.target.checked ? [...new Set([...form.serviceCodes,code])] : form.serviceCodes.filter(x => x !== code)})}/>{SERVICE_LABELS[code]}</label>)}</fieldset>
-        <label className="v14-check"><input type="checkbox" checked={form.newCustomerOnly} onChange={e => setForm({...form, newCustomerOnly:e.target.checked})}/>Chỉ khách hàng mới</label>
-        {saveError && <div className="v73-alert">{saveError}</div>}
         <footer><button className="button button-primary" disabled={saving}><Save size={15}/>{saving ? 'Đang lưu...' : (editingCode ? 'Lưu thay đổi' : 'Lưu mã')}</button></footer>
       </form>
-    </div>}
+    </div>, document.body)}
   </section>;
 }

@@ -3401,6 +3401,16 @@ img,svg{max-width:100%}
 .v14-version-note{display:flex;gap:9px;align-items:flex-start;margin-top:14px;padding:11px 12px;border:1px solid #f0d4a4;border-radius:12px;background:#fff8ea;color:#7a5711;font-size:10px;line-height:1.5}.v14-version-note svg{flex:0 0 auto;margin-top:1px}.v14-version-note b{color:#604307}
 .v14-modal footer{gap:8px}.v14-form-grid select:disabled,.v14-form-grid input:disabled{background:#f4f5f6;color:#7b8188;cursor:not-allowed}
 
+/* Promotion editor lives in a portal so page animations/overflow can never crop it. */
+.promotion-editor-backdrop{z-index:1200!important;min-height:100dvh;}
+.v14-modal.promotion-editor-modal{width:min(900px,calc(100vw - 40px));height:min(860px,calc(100dvh - 32px));max-height:calc(100dvh - 32px)!important;margin:0!important;padding:0!important;display:grid;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden!important;}
+.promotion-editor-modal>header{margin:0;padding:20px 22px 14px;}
+.promotion-editor-modal>header button{flex:0 0 auto;}
+.promotion-editor-scroll{min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0 22px 20px;}
+.promotion-editor-scroll .v163-audience-box{margin-top:14px;}
+.promotion-editor-modal>footer{margin:0;padding:14px 22px;border-top:1px solid #eceef0;background:#fff;}
+@media(max-width:680px){.v14-modal.promotion-editor-modal{width:calc(100vw - 24px);max-height:calc(100dvh - 24px)!important;border-radius:16px}.promotion-editor-modal>header{padding:16px 16px 12px}.promotion-editor-scroll{padding:0 16px 16px}.promotion-editor-modal>footer{padding:12px 16px}.promotion-editor-scroll .v14-service-checks{grid-template-columns:1fr}}
+
 .broadcast-kpis article>span.high{background:#fff6e4;color:#a46a09}.broadcast-kpis article>span.medium{background:#eaf8ff;color:#147da7}.broadcast-kpis article>span.normal{background:#eef4ff;color:#346fd1}
 .level-card.high svg{color:#c98009}.level-card.medium svg{color:#1680aa}
 .broadcast-warning.high{background:#fff8e9;border:1px solid #f1d39c;color:#8a5a08}.broadcast-warning.medium{background:#eefaff;border:1px solid #cdeaf5;color:#176c8d}
