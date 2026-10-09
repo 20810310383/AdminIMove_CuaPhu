@@ -3949,12 +3949,13 @@ img,svg{max-width:100%}
 .broadcast-detail.driver-exp-modal {
   display: flex;
   flex-direction: column;
-  width: min(760px, calc(100vw - 24px));
+  width: min(640px, calc(100vw - 24px));
   max-height: calc(100dvh - 24px);
   margin: auto;
   padding: 0;
   overflow: hidden !important;
 }
+.broadcast-detail-backdrop { z-index: 2000; }
 .broadcast-detail.driver-exp-modal > .driver-exp-modal-header {
   position: static;
   display: flex;
