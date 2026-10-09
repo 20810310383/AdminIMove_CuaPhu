@@ -37,7 +37,8 @@ const STATUS_LABEL = {
   APPROVED: 'Đã duyệt',
   REJECTED: 'Cần bổ sung',
   PENDING: 'Chờ duyệt',
-  ONLINE: 'Đang online',
+  ONLINE: 'Online',
+  BUSY: 'Online',
   OFFLINE: 'Offline',
   MISSING: 'Chưa có',
   UPLOADED: 'Đã tải lên',
@@ -63,7 +64,7 @@ function label(value) {
 
 function badgeClass(value) {
   const key = s(value);
-  if (key === 'APPROVED' || key === 'ONLINE') return 'success';
+  if (key === 'APPROVED' || key === 'ONLINE' || key === 'BUSY') return 'success';
   if (key === 'REJECTED') return 'danger';
   if (key === 'SUBMITTED' || key === 'UNDER_REVIEW' || key === 'PENDING') {
     return 'warning';
@@ -792,7 +793,7 @@ export default function DriverManagement() {
       if (['SUBMITTED', 'UNDER_REVIEW'].includes(kyc)) result.waiting += 1;
       if (kyc === 'APPROVED') result.approved += 1;
       if (kyc === 'REJECTED') result.rejected += 1;
-      if (s(row.onlineStatus) === 'ONLINE') result.online += 1;
+      if (['ONLINE', 'BUSY'].includes(s(row.onlineStatus))) result.online += 1;
     });
 
     return result;
@@ -904,7 +905,7 @@ export default function DriverManagement() {
         <Metric icon={Clock3} value={stats.waiting} label="Đang chờ duyệt" type="warning" />
         <Metric icon={BadgeCheck} value={stats.approved} label="Đã duyệt KYC" type="success" />
         <Metric icon={XCircle} value={stats.rejected} label="Cần bổ sung" type="danger" />
-        <Metric icon={Smartphone} value={stats.online} label="Đang online" type="online" />
+        <Metric icon={Smartphone} value={stats.online} label="Online" type="online" />
       </section>
 
       <section className="dm-filter-card">
