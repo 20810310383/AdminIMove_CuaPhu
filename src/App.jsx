@@ -729,6 +729,22 @@ function Drivers(){
   const users=read('customers');
   const userById=new Map(users.map(u=>[mongoId(u._id||u.id),u]));
   const [rows,setRows]=React.useState(read('drivers'));const [q,setQ]=React.useState('');const [showExport,setShowExport]=React.useState(false);
+  const [identityByDriverId,setIdentityByDriverId]=React.useState(()=>new Map());
+
+  // Legacy bootstrap only returns CUSTOMER users, while a driver's identity
+  // belongs to a DRIVER user.  Load the canonical identity list separately
+  // so the table never falls back to an ObjectId when both APIs are live.
+  React.useEffect(()=>{
+    let disposed=false;
+    coreApiRequest('/api/kyc/admin/drivers?page=1&limit=100').then(payload=>{
+      if(disposed) return;
+      const items=Array.isArray(payload)?payload:(Array.isArray(payload?.items)?payload.items:[]);
+      setIdentityByDriverId(new Map(items
+        .map(item=>[mongoId(item.driverId||item._id||item.id),item.user])
+        .filter(([driverId,user])=>Boolean(driverId&&user))));
+    }).catch(error=>console.warn('Không thể tải thông tin tài xế:',error.message));
+    return()=>{disposed=true};
+  },[]);
 
   // Nhận dữ liệu mới mỗi khi bootstrap được đồng bộ lại từ MongoDB.
   React.useEffect(()=>{
@@ -738,7 +754,7 @@ function Drivers(){
   },[]);
 
   // Collection `drivers` lưu userId, còn họ tên/SĐT nằm trong collection `users`.
-  const linkedUser=r=>userById.get(mongoId(r?.userId))||r?.user||null;
+  const linkedUser=r=>identityByDriverId.get(mongoId(r?._id||r?.id))||userById.get(mongoId(r?.userId))||r?.user||null;
   const driverName=r=>linkedUser(r)?.fullName||linkedUser(r)?.name||r?.fullName||r?.name||'';
   const driverPhone=r=>linkedUser(r)?.phone||r?.phone||'';
   const driverEmail=r=>linkedUser(r)?.email||r?.email||'';
