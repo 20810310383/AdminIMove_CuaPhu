@@ -28,7 +28,6 @@ import {
 } from 'lucide-react';
 
 import { coreApiRequest, openCorePrivateFile } from './coreApi.js';
-import Pagination, { PAGE_LIMIT, pageResult } from './Pagination.jsx';
 
 const STATUS_LABEL = {
   INCOMPLETE: 'Chưa hoàn tất',
@@ -37,8 +36,7 @@ const STATUS_LABEL = {
   APPROVED: 'Đã duyệt',
   REJECTED: 'Cần bổ sung',
   PENDING: 'Chờ duyệt',
-  ONLINE: 'Online',
-  BUSY: 'Online',
+  ONLINE: 'Đang online',
   OFFLINE: 'Offline',
   MISSING: 'Chưa có',
   UPLOADED: 'Đã tải lên',
@@ -64,7 +62,7 @@ function label(value) {
 
 function badgeClass(value) {
   const key = s(value);
-  if (key === 'APPROVED' || key === 'ONLINE' || key === 'BUSY') return 'success';
+  if (key === 'APPROVED' || key === 'ONLINE') return 'success';
   if (key === 'REJECTED') return 'danger';
   if (key === 'SUBMITTED' || key === 'UNDER_REVIEW' || key === 'PENDING') {
     return 'warning';
@@ -696,32 +694,24 @@ export default function DriverManagement() {
   const [error, setError] = React.useState('');
   const [query, setQuery] = React.useState('');
   const [tab, setTab] = React.useState('ALL');
-  const [page, setPage] = React.useState(1);
-  const [pagination, setPagination] = React.useState({ page: 1, limit: PAGE_LIMIT, total: 0, totalPages: 1 });
   const [selectedId, setSelectedId] = React.useState('');
   const [detail, setDetail] = React.useState(null);
   const [detailLoading, setDetailLoading] = React.useState(false);
   const [reviewing, setReviewing] = React.useState(false);
 
-  const loadRows = React.useCallback(async (requestedPage = page) => {
+  const loadRows = React.useCallback(async () => {
     setLoading(true);
     setError('');
 
     try {
-      const statuses = tab === 'WAITING' ? 'SUBMITTED,UNDER_REVIEW' : tab === 'ALL' ? '' : tab;
-      const params = new URLSearchParams({ page: String(requestedPage), limit: String(PAGE_LIMIT) });
-      if (statuses) params.set('status', statuses);
-      if (query.trim()) params.set('q', query.trim());
-      const result = pageResult(await coreApiRequest(`/api/kyc/admin/drivers?${params}`));
-      setRows(result.items);
-      setPagination(result.pagination);
-      setPage(result.pagination.page);
+      const data = await coreApiRequest('/api/kyc/admin/drivers');
+      setRows(Array.isArray(data) ? data : []);
     } catch (error) {
       setError(error.message || String(error));
     } finally {
       setLoading(false);
     }
-  }, [page, query, tab]);
+  }, []);
 
   React.useEffect(() => {
     loadRows();
@@ -793,7 +783,7 @@ export default function DriverManagement() {
       if (['SUBMITTED', 'UNDER_REVIEW'].includes(kyc)) result.waiting += 1;
       if (kyc === 'APPROVED') result.approved += 1;
       if (kyc === 'REJECTED') result.rejected += 1;
-      if (['ONLINE', 'BUSY'].includes(s(row.onlineStatus))) result.online += 1;
+      if (s(row.onlineStatus) === 'ONLINE') result.online += 1;
     });
 
     return result;
@@ -894,7 +884,7 @@ export default function DriverManagement() {
           <button type="button" className="button" onClick={exportCsv}>
             <Download size={16} /> Xuất CSV
           </button>
-          <button type="button" className="button button-primary" onClick={()=>loadRows(page)}>
+          <button type="button" className="button button-primary" onClick={loadRows}>
             <RefreshCw size={16} className={loading ? 'spin' : ''} /> Làm mới
           </button>
         </div>
@@ -905,7 +895,7 @@ export default function DriverManagement() {
         <Metric icon={Clock3} value={stats.waiting} label="Đang chờ duyệt" type="warning" />
         <Metric icon={BadgeCheck} value={stats.approved} label="Đã duyệt KYC" type="success" />
         <Metric icon={XCircle} value={stats.rejected} label="Cần bổ sung" type="danger" />
-        <Metric icon={Smartphone} value={stats.online} label="Online" type="online" />
+        <Metric icon={Smartphone} value={stats.online} label="Đang online" type="online" />
       </section>
 
       <section className="dm-filter-card">
@@ -915,7 +905,7 @@ export default function DriverManagement() {
               key={key}
               type="button"
               className={tab === key ? 'active' : ''}
-              onClick={() => { setPage(1); setTab(key); }}
+              onClick={() => setTab(key)}
             >
               {title}
               <span>{count}</span>
@@ -929,7 +919,7 @@ export default function DriverManagement() {
             <input
               type="search"
               value={query}
-              onChange={event => { setPage(1); setQuery(event.target.value); }}
+              onChange={event => setQuery(event.target.value)}
               placeholder="Tìm tên tài xế, số điện thoại, email, Driver ID..."
             />
           </label>
@@ -1022,8 +1012,6 @@ export default function DriverManagement() {
           </div>
         )}
       </section>
-
-      <Pagination pagination={pagination} loading={loading} onPageChange={loadRows} label="tài xế" />
 
       <DriverDrawer
         driverId={selectedId}

@@ -37,9 +37,12 @@ if (fs.existsSync(backendEnvPath)) {
 const runtime = resolveRuntimeConfig(process.env);
 const PORT = runtime.adminPort;
 const CORE_HTTP_PORT = runtime.corePort;
-const ADMIN_HOST = String(process.env.ADMIN_HOST || '0.0.0.0').trim();
 
-const CORE_BACKEND_URL = String(process.env.CORE_BACKEND_URL || '').trim().replace(/\/+$/, '');
+// PRODUCTION RULE:
+// Admin Gateway chỉ được phép kết nối đúng Core Backend public này.
+// Không đọc CORE_BACKEND_URL để đổi sang host khác.
+// Không fallback localhost, Atlas Registry, UDP hoặc LAN scan.
+const CORE_BACKEND_URL = 'https://backendimove.daututh79.com';
 
 const DB_NAME = process.env.MONGODB_DB || 'th79_imove';
 const MONGODB_URI = String(process.env.MONGODB_URI_OVERRIDE || process.env.MONGODB_URI || '').trim();
@@ -48,10 +51,6 @@ const CORE_CACHE_MS = Math.max(5000, Number(process.env.CORE_CACHE_MS || 60000))
 
 if (!MONGODB_URI) {
   console.error('❌ Thiếu MONGODB_URI. Hãy cấu hình imove_backend/.env hoặc MONGODB_URI_OVERRIDE trong imove_admin/server/.env');
-  process.exit(1);
-}
-if (!CORE_BACKEND_URL) {
-  console.error('❌ Thiếu CORE_BACKEND_URL. Hãy cấu hình server/.env.');
   process.exit(1);
 }
 
@@ -125,7 +124,7 @@ app.get('/api/core-connection', async (_req, res) => {
     source: 'FIXED_BACKEND_URL',
     adminPort: PORT,
     discoveredAt: new Date(coreCache.discoveredAt).toISOString(),
-    note: 'Admin dùng Core Backend được cấu hình bằng CORE_BACKEND_URL.',
+    note: 'Admin dùng trực tiếp Core Backend cố định; không health-check, không localhost/LAN/UDP/Atlas fallback.',
   });
 });
 
@@ -446,6 +445,8 @@ async function resolveAdminAccess(req) {
     throw e
   }
   const token = header.slice(7).trim();
+  const cached = adminTokenCache.get(token);
+  if (cached && Date.now() - cached.at < 30000) return cached.access;
 
   let baseUrl = await discoverCoreBackend(false);
   if (!baseUrl) baseUrl = await discoverCoreBackend(true);
@@ -505,6 +506,15 @@ async function resolveAdminAccess(req) {
     roleNames,
     permissions
   };
+  adminTokenCache.set(token, {
+    at: Date.now(),
+    access
+  });
+  if (adminTokenCache.size > 150) {
+    for (const [key, value] of adminTokenCache) {
+      if (Date.now() - value.at > 60000) adminTokenCache.delete(key)
+    }
+  }
   return access;
 }
 
@@ -597,8 +607,7 @@ app.get('/api/admin-access/me', requireAdminAccess(), async (req, res) => res.js
 // Read-only audit history for internal admin accounts.
 app.get('/api/admin-audit', requireAdminAccess('audit.view'), async (req, res) => {
   try {
-    const limit = Math.min(100, Math.max(1, Number(req.query.limit || 20)));
-    const page = Math.max(1, Math.round(Number(req.query.page || 1)));
+    const limit = Math.min(500, Math.max(1, Number(req.query.limit || 250)));
     const filter = {
       actorType: 'ADMIN'
     };
@@ -620,19 +629,10 @@ app.get('/api/admin-audit', requireAdminAccess('audit.view'), async (req, res) =
       }
       if (!Object.keys(filter.createdAt).length) delete filter.createdAt;
     }
-    const q = String(req.query.q || '').trim();
-    if (q) {
-      const regex = { $regex: q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
-      filter.$or = [
-        { action: regex }, { entityType: regex }, { entityId: regex }, { ip: regex },
-        { actorName: regex }, { actorPhone: regex }, { actorEmail: regex },
-      ];
-    }
 
-    const [logs, total] = await Promise.all([
-      db().collection('audit_logs').find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).toArray(),
-      db().collection('audit_logs').countDocuments(filter),
-    ]);
+    let logs = await db().collection('audit_logs').find(filter).sort({
+      createdAt: -1
+    }).limit(limit).toArray();
     const actorIds = [...new Set(logs.map(x => x.actorId).filter(Boolean).map(String))].map(objectIdOrNull).filter(Boolean);
     const actors = actorIds.length ? await db().collection('users').find({
       _id: {
@@ -646,6 +646,7 @@ app.get('/api/admin-audit', requireAdminAccess('audit.view'), async (req, res) =
       status: 1
     }).toArray() : [];
     const actorMap = new Map(actors.map(a => [String(a._id), a]));
+    const q = String(req.query.q || '').trim().toLowerCase();
     const rows = logs.map(log => {
       const actor = actorMap.get(String(log.actorId || ''));
       return {
@@ -664,6 +665,10 @@ app.get('/api/admin-audit', requireAdminAccess('audit.view'), async (req, res) =
           status: null
         }
       };
+    }).filter(row => {
+      if (!q) return true;
+      const text = [row.action, row.entityType, row.entityId, row.ip, row.actor?.fullName, row.actor?.phone, row.actor?.email, JSON.stringify(row.before || {}), JSON.stringify(row.after || {})].join(' ').toLowerCase();
+      return text.includes(q);
     });
     const actorList = await db().collection('users').find({
       roles: 'ADMIN'
@@ -677,7 +682,6 @@ app.get('/api/admin-audit', requireAdminAccess('audit.view'), async (req, res) =
     }).toArray();
     res.json({
       logs: rows,
-      pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
       actors: actorList.map(a => ({
         id: String(a._id),
         fullName: a.fullName || 'Quản trị viên',
@@ -830,9 +834,11 @@ app.post('/api/admin-profile/password', requireAdminAccess(), async (req, res) =
       }
     });
     adminTokenCache.clear();
-    await db().collection('admin_sessions').updateMany({
-      adminUserId: id,
-      revokedAt: null
+    await db().collection('auth_sessions').updateMany({
+      userId: id,
+      revokedAt: {
+        $exists: false
+      }
     }, {
       $set: {
         revokedAt: now,
@@ -1050,9 +1056,11 @@ app.post('/api/admin-management/accounts/:id/reset-password', requireAdminAccess
     if (!result.matchedCount) return res.status(404).json({
       message: 'Không tìm thấy tài khoản ADMIN.'
     });
-    if (db().collection('admin_sessions')) await db().collection('admin_sessions').updateMany({
-      adminUserId: id,
-      revokedAt: null
+    if (db().collection('auth_sessions')) await db().collection('auth_sessions').updateMany({
+      userId: id,
+      revokedAt: {
+        $exists: false
+      }
     }, {
       $set: {
         revokedAt: now,
@@ -1105,9 +1113,11 @@ app.delete('/api/admin-management/accounts/:id', requireAdminAccess('admins.mana
       _id: id,
       roles: 'ADMIN'
     });
-    await db().collection('admin_sessions').updateMany({
-      adminUserId: id,
-      revokedAt: null
+    await db().collection('auth_sessions').updateMany({
+      userId: id,
+      revokedAt: {
+        $exists: false
+      }
     }, {
       $set: {
         revokedAt: new Date(),
@@ -1319,35 +1329,6 @@ app.get('/api/data/settings', async (_req, res) => {
       message: error.message
     });
   }
-});
-
-app.get('/api/customers', requireAdminAccess('users.view'), async (req, res) => {
-  try {
-    const page = Math.max(1, Math.round(Number(req.query.page || 1)));
-    const limit = Math.min(100, Math.max(1, Math.round(Number(req.query.limit || 20))));
-    const keyword = String(req.query.q || '').trim();
-    const filter = { roles: 'CUSTOMER' };
-    if (keyword) {
-      const regex = { $regex: keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
-      filter.$or = [{ fullName: regex }, { name: regex }, { phone: regex }, { email: regex }];
-    }
-    const [customers, total] = await Promise.all([
-      db().collection('users').find(filter).sort({ createdAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit).toArray(),
-      db().collection('users').countDocuments(filter),
-    ]);
-    const customerIds = customers.map((customer) => customer._id);
-    const phones = customers.map((customer) => customer.phone).filter(Boolean);
-    const trips = customerIds.length
-      ? await db().collection(collectionMap.trips).find({
-        $or: [{ customerId: { $in: customerIds } }, { customerPhone: { $in: phones } }, { 'customerSnapshot.phone': { $in: phones } }],
-      }).sort({ createdAt: -1 }).toArray()
-      : [];
-    res.json({
-      customers: customers.map(serializeDoc),
-      trips: trips.map(serializeDoc),
-      pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) },
-    });
-  } catch (error) { res.status(500).json({ message: error.message }); }
 });
 
 app.put('/api/data/settings', requireAdminAccess('settings.manage'), async (req, res) => {
@@ -2276,15 +2257,16 @@ async function start() {
     console.log(`✅ MongoDB connected: ${DB_NAME}`);
     await ensureAdminRbacSeed();
     console.log('✅ Admin RBAC ready: users + admin_roles');
-    app.listen(PORT, ADMIN_HOST, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`✅ TH79 iMove Admin Gateway 1.5.1: http://localhost:${PORT}`);
       console.log(`🔎 Kiểm tra: http://localhost:${PORT}/api/health`);
-      console.log(`🔗 Core Backend: ${CORE_BACKEND_URL}`);
+      console.log(`🔗 Core Backend cố định: ${CORE_BACKEND_URL}`);
+      console.log('🔒 Không dùng localhost / Atlas Registry / UDP / LAN fallback.');
       discoverCoreBackend(true).then(baseUrl => {
         if (baseUrl) {
           console.log(`✅ Core Backend kết nối: ${baseUrl} (FIXED_BACKEND_URL)`);
         } else {
-          console.log(`❌ Không kết nối được Core Backend: ${CORE_BACKEND_URL}`);
+          console.log(`❌ Không kết nối được Core Backend cố định: ${CORE_BACKEND_URL}`);
           console.log(`   ${coreCache.lastError || ''}`);
         }
       }).catch(error => {

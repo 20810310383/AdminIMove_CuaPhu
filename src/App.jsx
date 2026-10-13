@@ -26,8 +26,8 @@ import CommerceOrdersPage from './CommerceOrdersPage.jsx';
 import EnterpriseSettingsPage from './SettingsPage.jsx';
 import SupportCenterPage from './SupportCenterPage.jsx';
 import { PermissionDenied } from './AdminPageState.jsx';
-import { adminApiRequest, hasPermission } from './adminApi.js';
-import { coreAdminLogin, coreAdminLogout, hasCoreAdminSession, currentCoreAdmin, coreAdminSessionExpiresAt, expireCoreAdminSession, validateCoreAdminSession, coreApiRequest } from './coreApi.js';
+import { adminApiRequest, adminAccessToken, hasPermission } from './adminApi.js';
+import { coreAdminLogin, coreAdminLogout, hasCoreAdminSession, currentCoreAdmin } from './coreApi.js';
 import {
   Bell, Search, Menu, X, LayoutDashboard, Users, Car, Route,
   WalletCards, ChartNoAxesCombined, Settings, LogOut, ArrowUpRight,
@@ -42,11 +42,18 @@ const defaultSettings={companyName:'Công ty TNHH Đầu tư T&H 79',brandName:'
 const dbCache={customers:[],drivers:[],trips:[],payments:[],revenue:[],settings:{...defaultSettings}};
 
 async function apiRequest(path,options={}){
-  // Vite forwards relative /api locally, but the production Admin is a static
-  // site and has no gateway at its own origin.  Always use the configured Core
-  // URL so bootstrap, Driver list and legacy admin actions read the same DB in
-  // both environments.
-  return coreApiRequest(`/api${path}`, options);
+  const token=adminAccessToken();
+  const response=await fetch(`/api${path}`,{
+    headers:{
+      'Content-Type':'application/json',
+      ...(token?{Authorization:`Bearer ${token}`}:{ }),
+      ...(options.headers||{})
+    },
+    ...options
+  });
+  const payload=await response.json().catch(()=>({}));
+  if(!response.ok) throw new Error(payload?.message||`API lỗi ${response.status}`);
+  return payload;
 }
 
 async function syncFromServer(){
@@ -149,8 +156,9 @@ function driverIsOnline(row){
 }
 function DriverOnlineIndicator({row}){
   const online=driverIsOnline(row);
-  const label=online?'Online':'Offline';
-  return <span title="Online status is updated automatically by the Driver app" aria-label={`Driver ${label}`} style={{display:'inline-flex',alignItems:'center',gap:7,fontWeight:700,whiteSpace:'nowrap',color:online?'#15803d':'#b42318'}}>
+  const rawStatus=String(row?.onlineStatus||'').trim().toUpperCase();
+  const label=online?(rawStatus==='BUSY'?'Đang hoạt động':'Online'):'Offline';
+  return <span title="Trạng thái được cập nhật tự động từ ứng dụng tài xế" aria-label={`Tài xế ${label}`} style={{display:'inline-flex',alignItems:'center',gap:7,fontWeight:700,whiteSpace:'nowrap',color:online?'#15803d':'#b42318'}}>
     <span aria-hidden="true" style={{width:10,height:10,borderRadius:'50%',background:online?'#22c55e':'#ef4444',boxShadow:`0 0 0 4px ${online?'rgba(34,197,94,.13)':'rgba(239,68,68,.11)'}`,flex:'0 0 auto'}}></span>
     <span>{label}</span>
   </span>;
@@ -346,7 +354,7 @@ function ExportFieldModal({open,onClose,title,filename,sheetName,columns,rows}){
 }
 
 function Login({onLogin}){
-  const [login,setLogin]=React.useState('');
+  const [login,setLogin]=React.useState('0909000099');
   const [password,setPassword]=React.useState('');
   const [error,setError]=React.useState('');
   const [loading,setLoading]=React.useState(false);
@@ -729,22 +737,6 @@ function Drivers(){
   const users=read('customers');
   const userById=new Map(users.map(u=>[mongoId(u._id||u.id),u]));
   const [rows,setRows]=React.useState(read('drivers'));const [q,setQ]=React.useState('');const [showExport,setShowExport]=React.useState(false);
-  const [identityByDriverId,setIdentityByDriverId]=React.useState(()=>new Map());
-
-  // Legacy bootstrap only returns CUSTOMER users, while a driver's identity
-  // belongs to a DRIVER user.  Load the canonical identity list separately
-  // so the table never falls back to an ObjectId when both APIs are live.
-  React.useEffect(()=>{
-    let disposed=false;
-    coreApiRequest('/api/kyc/admin/drivers?page=1&limit=100').then(payload=>{
-      if(disposed) return;
-      const items=Array.isArray(payload)?payload:(Array.isArray(payload?.items)?payload.items:[]);
-      setIdentityByDriverId(new Map(items
-        .map(item=>[mongoId(item.driverId||item._id||item.id),item.user])
-        .filter(([driverId,user])=>Boolean(driverId&&user))));
-    }).catch(error=>console.warn('Không thể tải thông tin tài xế:',error.message));
-    return()=>{disposed=true};
-  },[]);
 
   // Nhận dữ liệu mới mỗi khi bootstrap được đồng bộ lại từ MongoDB.
   React.useEffect(()=>{
@@ -754,7 +746,7 @@ function Drivers(){
   },[]);
 
   // Collection `drivers` lưu userId, còn họ tên/SĐT nằm trong collection `users`.
-  const linkedUser=r=>identityByDriverId.get(mongoId(r?._id||r?.id))||userById.get(mongoId(r?.userId))||r?.user||null;
+  const linkedUser=r=>userById.get(mongoId(r?.userId))||r?.user||null;
   const driverName=r=>linkedUser(r)?.fullName||linkedUser(r)?.name||r?.fullName||r?.name||'';
   const driverPhone=r=>linkedUser(r)?.phone||r?.phone||'';
   const driverEmail=r=>linkedUser(r)?.email||r?.email||'';
@@ -767,8 +759,8 @@ function Drivers(){
     {key:'income',label:'Thu nhập'},{key:'approval',label:'Hồ sơ',get:r=>labels[r.approval]||r.approval},{key:'online',label:'Online',get:r=>driverIsOnline(r)?'Online':'Offline'}
   ];
   return <><PageIntro title="Tài xế" description="Theo dõi tài xế và trạng thái hoạt động. Online được cập nhật tự động từ ứng dụng tài xế; Admin không thể bật/tắt thủ công." actions={<button type="button" className="button" onClick={()=>setShowExport(true)}><Download size={16}/> Xuất Excel</button>}/>
-    <section className="summary-strip" aria-label="Tổng hợp tài xế"><div><Car size={17}/><span><b>{rows.length}</b><small>Tổng tài xế</small></span></div><div><span className="live-dot"></span><span><b>{rows.filter(driverIsOnline).length}</b><small>Online</small></span></div><div><Clock3 size={17}/><span><b>{rows.filter(x=>x.approval==='pending').length}</b><small>Chờ duyệt</small></span></div><div><Star size={17}/><span><b>4.8</b><small>Đánh giá TB</small></span></div></section>
-    <section className="card data-card"><CardHeading title="Danh sách tài xế" sub="Chấm xanh = Online · chấm đỏ = Offline" action={<SearchField value={q} onChange={setQ} placeholder="Tên, khu vực, dịch vụ..."/>}/><TableShell caption="Danh sách tài xế TH79 iMove"><thead><tr><th scope="col">Tài xế</th><th scope="col">Dịch vụ</th><th scope="col">Khu vực</th><th scope="col">GPLX</th><th scope="col">Đánh giá</th><th scope="col">Chuyến</th><th scope="col">Thu nhập</th><th scope="col">Hồ sơ</th><th scope="col">Online</th></tr></thead><tbody>{filtered.map(r=>{const name=driverName(r);const phone=driverPhone(r);return <tr key={r.id}><td><MiniPerson name={name} sub={`${r.id} · ${phone||'—'}`}/></td><td>{r.service}</td><td>{r.area}</td><td>{r.license}</td><td><span className="rating"><Star size={14}/>{r.rating||'Mới'}</span></td><td>{r.trips}</td><td>{money(r.income)}</td><td>{r.approval==='pending'?<button className="button button-success button-small" onClick={()=>commit(rows.map(x=>x.id===r.id?{...x,approval:'approved'}:x))}><CheckCircle2 size={14}/> Duyệt</button>:<Status value="approved"/>}</td><td><DriverOnlineIndicator row={r}/></td></tr>})}</tbody></TableShell></section>
+    <section className="summary-strip" aria-label="Tổng hợp tài xế"><div><Car size={17}/><span><b>{rows.length}</b><small>Tổng tài xế</small></span></div><div><span className="live-dot"></span><span><b>{rows.filter(driverIsOnline).length}</b><small>Đang online</small></span></div><div><Clock3 size={17}/><span><b>{rows.filter(x=>x.approval==='pending').length}</b><small>Chờ duyệt</small></span></div><div><Star size={17}/><span><b>4.8</b><small>Đánh giá TB</small></span></div></section>
+    <section className="card data-card"><CardHeading title="Danh sách tài xế" sub="Chấm xanh = đang hoạt động · chấm đỏ = không hoạt động" action={<SearchField value={q} onChange={setQ} placeholder="Tên, khu vực, dịch vụ..."/>}/><TableShell caption="Danh sách tài xế TH79 iMove"><thead><tr><th scope="col">Tài xế</th><th scope="col">Dịch vụ</th><th scope="col">Khu vực</th><th scope="col">GPLX</th><th scope="col">Đánh giá</th><th scope="col">Chuyến</th><th scope="col">Thu nhập</th><th scope="col">Hồ sơ</th><th scope="col">Online</th></tr></thead><tbody>{filtered.map(r=>{const name=driverName(r);const phone=driverPhone(r);return <tr key={r.id}><td><MiniPerson name={name} sub={`${r.id} · ${phone||'—'}`}/></td><td>{r.service}</td><td>{r.area}</td><td>{r.license}</td><td><span className="rating"><Star size={14}/>{r.rating||'Mới'}</span></td><td>{r.trips}</td><td>{money(r.income)}</td><td>{r.approval==='pending'?<button className="button button-success button-small" onClick={()=>commit(rows.map(x=>x.id===r.id?{...x,approval:'approved'}:x))}><CheckCircle2 size={14}/> Duyệt</button>:<Status value="approved"/>}</td><td><DriverOnlineIndicator row={r}/></td></tr>})}</tbody></TableShell></section>
     <ExportFieldModal open={showExport} onClose={()=>setShowExport(false)} title="Xuất danh sách tài xế" filename="TH79_iMove_Danh_sach_tai_xe.xlsx" sheetName="Danh sách tài xế" columns={exportColumns} rows={filtered}/>
   </>
 }
@@ -1228,14 +1220,13 @@ function AdminApp(){
   const loadDatabase=React.useCallback(async()=>{
     setDbState({loading:true,error:''});
     try{
-      // Do not render an empty dashboard when production cannot reach Core.
-      // The previous background-only bootstrap left every cached collection
-      // empty, which looked like the system had no drivers or bookings.
+      // Chỉ chờ RBAC để mở giao diện. Bootstrap MongoDB lớn chạy nền,
+      // tránh giữ người dùng ở màn hình "Đang kết nối" quá lâu.
       await loadAdminAccess();
-      await syncFromServer();
       setDbState({loading:false,error:''});
+      syncFromServer().catch(error=>console.warn('Bootstrap MongoDB chạy nền thất bại:',error.message));
     } catch(error){
-      setDbState({loading:false,error:error.message||'Không thể tải dữ liệu từ Core Backend'});
+      setDbState({loading:false,error:error.message||'Không thể tải quyền quản trị'});
     }
   },[loadAdminAccess]);
 
@@ -1263,29 +1254,6 @@ function AdminApp(){
     window.addEventListener('imove:admin-auth-expired',expired);
     return()=>window.removeEventListener('imove:admin-auth-expired',expired);
   },[]);
-
-  React.useEffect(()=>{
-    if(!logged) return undefined;
-    let disposed=false;
-    const verify=async()=>{
-      try{await validateCoreAdminSession()}
-      catch(error){if(!disposed)console.warn('Phiên quản trị không còn hợp lệ:',error.message)}
-    };
-    verify();
-    const timer=window.setInterval(verify,60000);
-    const onFocus=()=>verify();
-    window.addEventListener('focus',onFocus);
-    return()=>{disposed=true;window.clearInterval(timer);window.removeEventListener('focus',onFocus)};
-  },[logged]);
-
-  React.useEffect(()=>{
-    if(!logged) return undefined;
-    const expiresAt=coreAdminSessionExpiresAt();
-    if(!expiresAt) return undefined;
-    const delay=Math.max(0,expiresAt-Date.now());
-    const timer=window.setTimeout(expireCoreAdminSession,delay);
-    return()=>window.clearTimeout(timer);
-  },[logged]);
 
   if(!logged) return <Login onLogin={()=>{setLogged(true);setPage('overview')}}/>;
   if(dbState.loading) return <main className="connection-screen"><Database size={42}/><h1>Đang kết nối MongoDB Atlas...</h1><p>TH79 iMove Admin đang tải dữ liệu từ backend.</p></main>;

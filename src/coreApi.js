@@ -2,49 +2,9 @@ import { CORE_BACKEND_URL, coreUrl, fetchWithTimeout } from './apiRuntime.js';
 
 const ACCESS_KEY = 'imove_core_admin_access_token';
 const USER_KEY = 'imove_core_admin_user';
-const SESSION_EXPIRY_KEY = 'imove_core_admin_session_expires_at';
-
-function parseExpiry(value) {
-  const date = new Date(value);
-  return Number.isFinite(date.getTime()) ? date.getTime() : 0;
-}
-
-function tokenExpiry(token) {
-  try {
-    const encoded = String(token || '').split('.')[1];
-    if (!encoded) return 0;
-    const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
-    const payload = JSON.parse(atob(base64));
-    return Number(payload?.exp || 0) * 1000;
-  } catch (_) {
-    return 0;
-  }
-}
-
-export function coreAdminSessionExpiresAt() {
-  const stored = Number(localStorage.getItem(SESSION_EXPIRY_KEY) || 0);
-  if (stored > 0) return stored;
-  return tokenExpiry(localStorage.getItem(ACCESS_KEY));
-}
-
-export function expireCoreAdminSession() {
-  clearCoreAdminSession();
-  window.dispatchEvent(new Event('imove:admin-auth-expired'));
-}
-
-export function coreAdminAccessToken() {
-  const token = localStorage.getItem(ACCESS_KEY) || '';
-  if (!token) return '';
-  const expiresAt = coreAdminSessionExpiresAt();
-  if (expiresAt && expiresAt <= Date.now()) {
-    expireCoreAdminSession();
-    return '';
-  }
-  return token;
-}
 
 export function hasCoreAdminSession() {
-  return Boolean(coreAdminAccessToken());
+  return Boolean(localStorage.getItem(ACCESS_KEY));
 }
 
 export function currentCoreAdmin() {
@@ -58,7 +18,6 @@ export function currentCoreAdmin() {
 export function clearCoreAdminSession() {
   localStorage.removeItem(ACCESS_KEY);
   localStorage.removeItem(USER_KEY);
-  localStorage.removeItem(SESSION_EXPIRY_KEY);
   localStorage.removeItem('imove_admin_session');
 }
 
@@ -183,68 +142,19 @@ export async function coreAdminLogin({ login, password }) {
     throw new Error('Backend không trả Access Token quản trị.');
   }
 
-  const expiresAt = parseExpiry(payload.expiresAt) || (Date.now() + Number(payload.expiresInSeconds || 0) * 1000);
-  if (!expiresAt || expiresAt <= Date.now()) {
-    throw new Error('Backend trả về thời hạn phiên quản trị không hợp lệ.');
-  }
-
   localStorage.setItem(ACCESS_KEY, payload.accessToken);
   localStorage.setItem(USER_KEY, JSON.stringify(payload.user || null));
-  localStorage.setItem(SESSION_EXPIRY_KEY, String(expiresAt));
   localStorage.setItem('imove_admin_session', '1');
 
   return payload;
 }
 
-export async function coreAdminLogout() {
-  const token = localStorage.getItem(ACCESS_KEY) || '';
+export function coreAdminLogout() {
   clearCoreAdminSession();
-  if (!token) return;
-  try {
-    await fetchWithTimeout(
-      coreUrl('/api/admin-auth/logout'),
-      {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        cache: 'no-store',
-      },
-      8000,
-    );
-  } catch (_) {
-    // The client session was removed even if an offline server cannot record logout.
-  }
-}
-
-export async function validateCoreAdminSession() {
-  const token = coreAdminAccessToken();
-  if (!token) throw new Error('Phiên quản trị đã hết hạn.');
-
-  let response;
-  try {
-    response = await fetchWithTimeout(
-      coreUrl('/api/admin-auth/me'),
-      { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' },
-      10000,
-    );
-  } catch (error) {
-    throw new Error(`Không thể kiểm tra phiên quản trị: ${error?.message || String(error)}`);
-  }
-
-  const payload = await response.json().catch(() => ({}));
-  if (response.status === 401 || response.status === 403) {
-    expireCoreAdminSession();
-  }
-  if (!response.ok) {
-    throw new Error(payload?.message || `Không thể kiểm tra phiên quản trị (${response.status})`);
-  }
-
-  const expiresAt = parseExpiry(payload?.expiresAt);
-  if (expiresAt > Date.now()) localStorage.setItem(SESSION_EXPIRY_KEY, String(expiresAt));
-  return payload;
 }
 
 export async function coreApiRequest(path, options = {}) {
-  const token = coreAdminAccessToken();
+  const token = localStorage.getItem(ACCESS_KEY);
 
   if (!token) {
     throw new Error('Chưa đăng nhập Core Admin.');
@@ -286,7 +196,8 @@ export async function coreApiRequest(path, options = {}) {
   const payload = await response.json().catch(() => ({}));
 
   if (response.status === 401) {
-    expireCoreAdminSession();
+    clearCoreAdminSession();
+    window.dispatchEvent(new Event('imove:admin-auth-expired'));
   }
 
   if (!response.ok) {
@@ -300,7 +211,7 @@ export async function coreApiRequest(path, options = {}) {
 }
 
 export async function openCorePrivateFile(fileId) {
-  const token = coreAdminAccessToken();
+  const token = localStorage.getItem(ACCESS_KEY);
   if (!token) throw new Error('Chưa đăng nhập Core Admin.');
 
   const popup = window.open('', '_blank');
@@ -315,7 +226,8 @@ export async function openCorePrivateFile(fileId) {
     );
 
     if (response.status === 401) {
-      expireCoreAdminSession();
+      clearCoreAdminSession();
+      window.dispatchEvent(new Event('imove:admin-auth-expired'));
     }
 
     if (!response.ok) {

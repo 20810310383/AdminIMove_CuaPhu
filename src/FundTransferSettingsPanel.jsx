@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Banknote, CheckCircle2, Copy, Image, QrCode, RefreshCw, Save, Upload, XCircle } from 'lucide-react';
-import { coreAdminAccessToken, coreApiRequest, expireCoreAdminSession } from './coreApi.js';
+import { coreApiRequest } from './coreApi.js';
 import { coreUrl } from './apiRuntime.js';
 
 const money=(v)=>new Intl.NumberFormat('vi-VN').format(Number(v||0))+' ₫';
@@ -13,19 +13,11 @@ export default function FundTransferSettingsPanel(){
   const [requests,setRequests]=React.useState([]);
   const [actorType,setActorType]=React.useState('ALL');
   const [busy,setBusy]=React.useState('');
-  const [notice,setNotice]=React.useState(null);
-
-  const showNotice=React.useCallback((type,message)=>{
-    setNotice({type,message});
-  },[]);
-
-  React.useEffect(()=>{
-    if(!notice)return undefined;
-    const timer=window.setTimeout(()=>setNotice(null),5000);
-    return ()=>window.clearTimeout(timer);
-  },[notice]);
+  const [error,setError]=React.useState('');
+  const [saved,setSaved]=React.useState('');
 
   const load=React.useCallback(async()=>{
+    setError('');
     try{
       const [cfg,rows]=await Promise.all([
         coreApiRequest('/api/v171/admin/funds/config'),
@@ -34,73 +26,62 @@ export default function FundTransferSettingsPanel(){
       setBank({...bank,...(cfg?.bank||{})});
       setMinimumAmountVnd(Number(cfg?.minimumAmountVnd||50000));
       setRequests(Array.isArray(rows?.requests)?rows.requests:[]);
-    }catch(e){showNotice('error',e.message||String(e))}
+    }catch(e){setError(e.message||String(e))}
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[actorType,showNotice]);
+  },[actorType]);
 
   React.useEffect(()=>{load()},[load]);
 
   async function saveConfig(){
-    setBusy('config');setNotice(null);
+    setBusy('config');setSaved('');setError('');
     try{
       const data=await coreApiRequest('/api/v171/admin/funds/config',{
         method:'PUT',
         body:JSON.stringify({...bank,minimumAmountVnd:Number(minimumAmountVnd||50000)}),
       });
-      setBank(data?.bank||bank);showNotice('success','Đã lưu cấu hình tài khoản nhận quỹ.');
-    }catch(e){showNotice('error',e.message||String(e))}
+      setBank(data?.bank||bank);setSaved('Đã lưu cấu hình tài khoản nhận quỹ.');
+    }catch(e){setError(e.message||String(e))}
     finally{setBusy('')}
   }
 
   async function uploadQr(file){
     if(!file)return;
-    setBusy('qr');setNotice(null);
+    setBusy('qr');setError('');
     try{
       const fd=new FormData();fd.append('qr',file);
       const data=await coreApiRequest('/api/v171/admin/funds/config/qr',{method:'POST',body:fd});
       setBank(v=>({...v,qrImageUrl:data?.qrImageUrl||'/api/v171/funds/qr'}));
-      showNotice('success','Đã cập nhật mã QR.');
-    }catch(e){showNotice('error',e.message||String(e))}
+      setSaved('Đã cập nhật mã QR.');
+    }catch(e){setError(e.message||String(e))}
     finally{setBusy('')}
   }
 
   async function act(row,action){
-    setBusy(row.id);setNotice(null);
+    setBusy(row.id);setError('');
     try{
       let body='{}';
-      if(action==='approve'){
-        if(!row.receiptUploaded){
-          showNotice('error','Chưa thể duyệt: Driver/Merchant chưa tải biên lai. Hãy yêu cầu họ gửi bill rồi đối chiếu giao dịch.');
-          return;
-        }
-        const confirmed=window.confirm(`Xác nhận đã đối chiếu nhận ${money(row.amountVnd)}?\n\nNội dung chuyển khoản: ${row.transferContent}`);
-        if(!confirmed){setBusy('');return}
-      }
       if(action==='reject'){
         const reason=window.prompt('Lý do từ chối:','Không đối chiếu được giao dịch chuyển khoản.');
         if(reason===null){setBusy('');return}
-        if(String(reason).trim().length<3){throw new Error('Lý do từ chối cần tối thiểu 3 ký tự.');}
         body=JSON.stringify({reason});
       }
       await coreApiRequest(`/api/v171/admin/funds/requests/${row.id}/${action}`,{method:'POST',body});
-      showNotice('success',action==='approve'?'Đã duyệt yêu cầu và cập nhật quỹ.':'Đã từ chối yêu cầu nạp quỹ.');
       await load();
-    }catch(e){showNotice('error',e.message||String(e))}
+    }catch(e){setError(e.message||String(e))}
     finally{setBusy('')}
   }
 
   async function viewReceipt(row){
-    const token=coreAdminAccessToken();
+    const token=localStorage.getItem('imove_core_admin_access_token');
     if(!token||!row?.receiptUrl)return;
     const popup=window.open('','_blank');
     try{
       const response=await fetch(coreUrl(row.receiptUrl),{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
-      if(response.status===401)expireCoreAdminSession();
       if(!response.ok)throw new Error('Không mở được biên lai.');
       const blob=await response.blob();const url=URL.createObjectURL(blob);
       if(popup)popup.location.href=url;else window.open(url,'_blank','noopener,noreferrer');
       window.setTimeout(()=>URL.revokeObjectURL(url),60000);
-    }catch(e){if(popup)popup.close();showNotice('error',e.message||String(e))}
+    }catch(e){if(popup)popup.close();setError(e.message||String(e))}
   }
 
   const qrSrc=bank.qrImageUrl?coreUrl(bank.qrImageUrl):'';
@@ -110,7 +91,8 @@ export default function FundTransferSettingsPanel(){
       <div><span className="v14-eyebrow">QR FUNDING · DRIVER & MERCHANT</span><h2>QR nhận quỹ & duyệt biên lai</h2><p>Admin cấu hình một tài khoản/QR nhận tiền. App tự sinh nội dung chuyển khoản riêng theo Driver/Merchant để dễ đối soát.</p></div>
       <button className="button" onClick={load}><RefreshCw size={14}/>Làm mới</button>
     </header>
-    {notice&&<div className={notice.type==='success'?'broadcast-alert success':'v73-alert'} role="status" aria-live="polite">{notice.message}</div>}
+    {error&&<div className="v73-alert">{error}</div>}
+    {saved&&<div className="broadcast-alert success">{saved}</div>}
     <div className="fund-transfer-grid">
       <article className="card fund-bank-card">
         <div className="fund-bank-title"><Banknote size={18}/><b>Tài khoản nhận quỹ</b></div>
@@ -141,7 +123,7 @@ export default function FundTransferSettingsPanel(){
           <td>{row.receiptUploaded?<button className="button button-small" onClick={()=>viewReceipt(row)}><Image size={13}/>Xem bill</button>:<span className="v14-subline">Chưa upload</span>}</td>
           <td><span className={`v14-status ${row.status==='APPROVED'?'success':row.status==='REJECTED'?'failed':'pending'}`}>{row.status}</span></td>
           <td>{date(row.createdAt)}</td>
-          <td>{['PENDING_REVIEW','WAITING_TRANSFER'].includes(row.status)?<div className="page-actions"><button className="button button-small" disabled={busy===row.id} onClick={()=>act(row,'reject')}><XCircle size={13}/>{busy===row.id?'Đang xử lý...':'Từ chối'}</button><button className="button button-small button-primary" title={row.receiptUploaded?'Duyệt sau khi đã đối chiếu giao dịch':'Chưa có bill — bấm để xem lý do chưa thể duyệt'} disabled={busy===row.id} onClick={()=>act(row,'approve')}><CheckCircle2 size={13}/>{busy===row.id?'Đang xử lý...':'Duyệt'}</button></div>:'—'}</td>
+          <td>{['PENDING_REVIEW','WAITING_TRANSFER'].includes(row.status)?<div className="page-actions"><button className="button button-small" disabled={busy===row.id} onClick={()=>act(row,'reject')}><XCircle size={13}/>Từ chối</button><button className="button button-small button-primary" disabled={busy===row.id||!row.receiptUploaded} onClick={()=>act(row,'approve')}><CheckCircle2 size={13}/>Duyệt</button></div>:'—'}</td>
         </tr>)}
       </tbody></table>{!requests.length&&<div className="v14-empty">Chưa có yêu cầu nạp quỹ.</div>}</div>
     </section>

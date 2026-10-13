@@ -5,7 +5,8 @@ import { resolveAdminProxyTarget } from './server/runtime_config.js';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const adminApi = resolveAdminProxyTarget({
-    explicitUrl: env.VITE_CORE_BACKEND_URL,
+    explicitUrl: env.VITE_ADMIN_API_URL,
+    fallbackPort: 5060,
   });
 
   const proxyError = (proxy) => {

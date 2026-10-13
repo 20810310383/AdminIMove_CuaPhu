@@ -1,8 +1,9 @@
 import { coreUrl, fetchWithTimeout } from './apiRuntime.js';
-import { coreAdminAccessToken, expireCoreAdminSession } from './coreApi.js';
+
+const ACCESS_KEY = 'imove_core_admin_access_token';
 
 export function adminAccessToken() {
-  return coreAdminAccessToken();
+  return localStorage.getItem(ACCESS_KEY) || '';
 }
 
 export async function adminApiRequest(path, options = {}) {
@@ -42,7 +43,7 @@ export async function adminApiRequest(path, options = {}) {
   const payload = await response.json().catch(() => ({}));
 
   if (response.status === 401) {
-    expireCoreAdminSession();
+    window.dispatchEvent(new Event('imove:admin-auth-expired'));
   }
 
   if (!response.ok) {

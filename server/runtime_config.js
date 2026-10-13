@@ -3,9 +3,9 @@ function parsePort(value, fallback) {
   return Number.isInteger(parsed) && parsed > 0 && parsed <= 65535 ? parsed : fallback;
 }
 
-function normalizeHttpBaseUrl(value, label = 'URL') {
-  const clean = String(value || '').trim().replace(/\/+$/, '');
-  if (!clean) throw new Error(`${label} chưa được cấu hình.`);
+function normalizeHttpBaseUrl(value, fallback) {
+  const clean = String(value || fallback || '').trim().replace(/\/+$/, '');
+  if (!clean) return '';
   try {
     const parsed = new URL(clean);
     if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('unsupported protocol');
@@ -27,10 +27,18 @@ export function resolveAdminPort({ adminPort, corePort, fallbackPort = 5060 }) {
 export function resolveRuntimeConfig(env = process.env) {
   const corePort = parsePort(env.CORE_HTTP_PORT, 5050);
   const adminPort = resolveAdminPort({ adminPort: env.ADMIN_PORT, corePort }).port;
-  const coreBackendUrl = normalizeHttpBaseUrl(env.CORE_BACKEND_URL, 'CORE_BACKEND_URL');
+  const coreBackendUrl = normalizeHttpBaseUrl(
+    env.CORE_BACKEND_URL,
+    `http://127.0.0.1:${corePort}`,
+  );
   return { adminPort, corePort, coreBackendUrl };
 }
 
-export function resolveAdminProxyTarget({ explicitUrl } = {}) {
-  return normalizeHttpBaseUrl(explicitUrl, 'VITE_CORE_BACKEND_URL');
+export function localCoreCandidate(corePort = 5050) {
+  const port = parsePort(corePort, 5050);
+  return `http://127.0.0.1:${port}`;
+}
+
+export function resolveAdminProxyTarget({ explicitUrl, fallbackPort = 5060 } = {}) {
+  return normalizeHttpBaseUrl(explicitUrl, `http://127.0.0.1:${fallbackPort}`);
 }

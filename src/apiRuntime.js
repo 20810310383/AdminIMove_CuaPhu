@@ -1,17 +1,20 @@
+const FALLBACK_CORE_BACKEND_URL = 'https://backendimove.daututh79.com';
+
 function cleanBaseUrl(value) {
   return String(value || '')
     .trim()
     .replace(/\/+$/, '');
 }
 
-export const CORE_BACKEND_URL = cleanBaseUrl(import.meta.env?.VITE_CORE_BACKEND_URL);
+export const CORE_BACKEND_URL = cleanBaseUrl(
+  import.meta.env?.VITE_CORE_BACKEND_URL ||
+  import.meta.env?.VITE_API_URL ||
+  FALLBACK_CORE_BACKEND_URL
+);
 
 export function coreUrl(path = '') {
   const value = String(path || '').trim();
   if (/^https?:\/\//i.test(value)) return value;
-  if (!CORE_BACKEND_URL) {
-    throw new Error('Thiếu VITE_CORE_BACKEND_URL trong file .env của AdminIMove.');
-  }
   if (!value) return CORE_BACKEND_URL;
   return `${CORE_BACKEND_URL}${value.startsWith('/') ? value : `/${value}`}`;
 }
