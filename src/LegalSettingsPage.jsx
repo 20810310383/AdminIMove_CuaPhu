@@ -139,6 +139,25 @@ export default function LegalSettingsPage() {
     load();
   }, [load]);
 
+  // Cho phép bật/tắt OTP độc lập với nội dung pháp lý chưa soạn xong.
+  async function saveFeatures() {
+    setSaving(true);
+    setError('');
+    setMessage('');
+    try {
+      await coreApiRequest('/api/v180/admin/app-settings', {
+        method: 'PUT',
+        body: JSON.stringify(features),
+      });
+      await load();
+      setMessage('Đã cập nhật bật/tắt OTP và trạng thái pháp lý trên Backend.');
+    } catch (e) {
+      setError(e?.message || String(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function save() {
     if (
       features.legalInformationEnabled &&
@@ -171,10 +190,8 @@ export default function LegalSettingsPage() {
         });
       }
 
-      setMessage(
-        'Đã lưu. User, Driver và Merchant sẽ áp dụng trạng thái mới trực tiếp từ Core Backend.',
-      );
       await load();
+      setMessage('Đã lưu cấu hình trên Core Backend. User, Driver và Merchant sẽ nhận nội dung mới khi mở trang.');
     } catch (e) {
       setError(e.message || String(e));
     } finally {
@@ -238,6 +255,12 @@ export default function LegalSettingsPage() {
               setFeatures((old) => ({ ...old, legalInformationEnabled: value }))
             }
           />
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
+          <button type="button" className="button button-primary" disabled={saving} onClick={saveFeatures}>
+            <Save size={16} /> Lưu trạng thái OTP & hiển thị
+          </button>
         </div>
 
         {!features.otpVerificationEnabled && (

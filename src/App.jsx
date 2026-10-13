@@ -12,6 +12,8 @@ import BroadcastCenterPage from './BroadcastCenterPage.jsx';
 import DriverExperiencePage from './DriverExperiencePage.jsx';
 import DriverPointTopupsPage from './DriverPointTopupsPage.jsx';
 import ProductionHealthPage from './ProductionHealthPage.jsx';
+import LegalSettingsPage from './LegalSettingsPage.jsx';
+import OtpManagementPage from './OtpManagementPage.jsx';
 import TripOperationsMap from './TripOperationsMap.jsx';
 import AnalyticsReportsPage from './ReportsPage.jsx';
 import PaymentsV14Page from './PaymentsPage.jsx';
@@ -432,6 +434,8 @@ const nav=[
   ['admin-roles','Phân quyền',ShieldCheck,'roles.manage'],
   ['admin-audit','Lịch sử thao tác',History,'audit.view'],
   ['admin-profile','Thông tin cá nhân',UserRoundCheck,null],
+  ['otp-management','Quản lý OTP',ShieldCheck,'settings.view'],
+  ['legal-settings','OTP & Điều khoản / Bảo mật',FileText,'settings.view'],
   ['settings','Cài đặt hệ thống',Settings,'settings.view']
 ];
 
@@ -442,7 +446,7 @@ const navGroups=[
   {label:'COMMERCE',items:['commerce-orders']},
   {label:'KINH DOANH',items:['pricing','promotions','payments','driver-point-topups','settlement','reports']},
   {label:'TRUYỀN THÔNG',items:['broadcasts','support']},
-  {label:'AN TOÀN & HỆ THỐNG',items:['trust','production-health','admin-accounts','admin-roles','admin-audit','admin-profile','settings']}
+  {label:'AN TOÀN & HỆ THỐNG',items:['trust','production-health','admin-accounts','admin-roles','admin-audit','admin-profile','otp-management','legal-settings','settings']}
 ];
 
 const specialPageTitles={
@@ -1281,6 +1285,8 @@ function AdminApp(){
   if(page==='driver-point-topups')view=can('drivers.view')?<DriverPointTopupsPage/>:<PermissionDenied/>;
   if(page==='settlement')view=can('settlements.view')?<SettlementPage/>:<PermissionDenied/>;
   if(page==='reports')view=can('reports.view')?<AnalyticsReportsPage/>:<PermissionDenied/>;
+  if(page==='otp-management')view=can('settings.view')?<OtpManagementPage access={adminAccess}/>:<PermissionDenied/>;
+  if(page==='legal-settings')view=can('settings.view')?<LegalSettingsPage/>:<PermissionDenied/>;
   if(page==='settings')view=can('settings.view')?<EnterpriseSettingsPage/>:<PermissionDenied/>;
   if(page==='admin-profile')view=<ProfilePage access={adminAccess} onAccessChanged={setAdminAccess} onLogout={()=>{coreAdminLogout();setAdminAccess(null);setLogged(false)}}/>;
   if(page==='admin-accounts')view=can('admins.view')?<AdminAccess mode="accounts" access={adminAccess} onAccessChanged={setAdminAccess}/>:<PermissionDenied/>;
