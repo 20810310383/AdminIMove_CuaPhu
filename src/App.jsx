@@ -356,7 +356,7 @@ function ExportFieldModal({open,onClose,title,filename,sheetName,columns,rows}){
 }
 
 function Login({onLogin}){
-  const [login,setLogin]=React.useState('0909000099');
+  const [login,setLogin]=React.useState('');
   const [password,setPassword]=React.useState('');
   const [error,setError]=React.useState('');
   const [loading,setLoading]=React.useState(false);
@@ -393,9 +393,9 @@ function Login({onLogin}){
         <div className="brand-logo"><span>iM</span><div><b>TH79 iMove</b><small>ADMIN CENTER</small></div></div>
         <h2 id="login-title">Đăng nhập quản trị</h2>
         <p>Xác thực bằng tài khoản ADMIN trên Core Backend.</p>
-        <form onSubmit={submit} noValidate>
+        <form onSubmit={submit} noValidate autoComplete="off">
           <label htmlFor="admin-login">Số điện thoại hoặc Email</label>
-          <input id="admin-login" autoComplete="username" value={login} onChange={e=>setLogin(e.target.value)} placeholder="SĐT hoặc email Admin"/>
+          <input id="admin-login" autoComplete="off" value={login} onChange={e=>setLogin(e.target.value)} placeholder="SĐT hoặc email Admin"/>
           <label htmlFor="admin-password">Mật khẩu</label>
           <input id="admin-password" type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Nhập mật khẩu"/>
           {error&&<p className="form-error" role="alert">{error}</p>}
@@ -435,7 +435,7 @@ const nav=[
   ['admin-audit','Lịch sử thao tác',History,'audit.view'],
   ['admin-profile','Thông tin cá nhân',UserRoundCheck,null],
   ['otp-management','Quản lý OTP',ShieldCheck,'settings.view'],
-  ['legal-settings','OTP & Điều khoản / Bảo mật',FileText,'settings.view'],
+  ['legal-settings','Điều khoản & Bảo mật',FileText,'settings.view'],
   ['settings','Cài đặt hệ thống',Settings,'settings.view']
 ];
 
@@ -446,7 +446,7 @@ const navGroups=[
   {label:'COMMERCE',items:['commerce-orders']},
   {label:'KINH DOANH',items:['pricing','promotions','payments','driver-point-topups','settlement','reports']},
   {label:'TRUYỀN THÔNG',items:['broadcasts','support']},
-  {label:'AN TOÀN & HỆ THỐNG',items:['trust','production-health','admin-accounts','admin-roles','admin-audit','admin-profile','otp-management','legal-settings','settings']}
+  {label:'AN TOÀN & HỆ THỐNG',items:['trust','production-health','legal-settings','otp-management','admin-accounts','admin-roles','admin-audit','admin-profile','settings']}
 ];
 
 const specialPageTitles={
@@ -1265,7 +1265,7 @@ function AdminApp(){
 
   const can=(permission)=>!adminAccess||hasPermission(adminAccess,permission);
   let view=<DashboardPage access={adminAccess}/>;
-  if(page==='production-health')view=can('settings.view')?<ProductionHealthPage/>:<PermissionDenied/>;
+  if(page==='production-health')view=can('settings.view')?<ProductionHealthPage access={adminAccess}/>:<PermissionDenied/>;
   if(page==='operations')view=can('bookings.view')?<CoreOperationsPage/>:<PermissionDenied/>;
   if(page==='matching')view=can('matching.view')?<MatchingControlPage access={adminAccess}/>:<PermissionDenied/>;
   if(page==='dispatch69')view=can('matching.view')?<DispatchCenterPage/>:<PermissionDenied/>;
@@ -1286,7 +1286,7 @@ function AdminApp(){
   if(page==='settlement')view=can('settlements.view')?<SettlementPage/>:<PermissionDenied/>;
   if(page==='reports')view=can('reports.view')?<AnalyticsReportsPage/>:<PermissionDenied/>;
   if(page==='otp-management')view=can('settings.view')?<OtpManagementPage access={adminAccess}/>:<PermissionDenied/>;
-  if(page==='legal-settings')view=can('settings.view')?<LegalSettingsPage/>:<PermissionDenied/>;
+  if(page==='legal-settings')view=can('settings.view')?<LegalSettingsPage access={adminAccess}/>:<PermissionDenied/>;
   if(page==='settings')view=can('settings.view')?<EnterpriseSettingsPage/>:<PermissionDenied/>;
   if(page==='admin-profile')view=<ProfilePage access={adminAccess} onAccessChanged={setAdminAccess} onLogout={()=>{coreAdminLogout();setAdminAccess(null);setLogged(false)}}/>;
   if(page==='admin-accounts')view=can('admins.view')?<AdminAccess mode="accounts" access={adminAccess} onAccessChanged={setAdminAccess}/>:<PermissionDenied/>;

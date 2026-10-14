@@ -25,6 +25,7 @@ import {
   Wrench,
 } from 'lucide-react';
 import { coreApiRequest } from './coreApi.js';
+import RegistrationOtpPanel from './RegistrationOtpPanel.jsx';
 
 const money = (value) => new Intl.NumberFormat('vi-VN').format(Number(value || 0)) + ' ₫';
 const number = (value) => new Intl.NumberFormat('vi-VN').format(Number(value || 0));
@@ -90,40 +91,16 @@ function cloneConfig(config) {
   };
 }
 
-function forceProductionPolicy(config) {
+// Thay đổi chế độ KHÔNG ghi đè các công tắc đang được quản trị viên lưu.
+// PRODUCTION vẫn cho phép từng điều kiện bảo mật được cấu hình độc lập.
+function withSecurityMode(config, mode) {
   const next = cloneConfig(config);
-  next.securityMode = 'PRODUCTION';
-  next.securityPolicy = {
-    ...(next.securityPolicy || {}),
-    enforceKyc: true,
-    enforceRiskRestriction: true,
-    requireFcm: true,
-    requireTrustedDevice: true,
-    requireIntegrity: true,
-    requireFace: true,
-    requireBiometric: true,
-  };
-  return next;
-}
-
-function enterTestMode(config) {
-  const next = cloneConfig(config);
-  next.securityMode = 'TEST';
+  next.securityMode = mode === 'TEST' ? 'TEST' : 'PRODUCTION';
   next.securityPolicyVersion = 2;
-  next.securityPolicy = {
-    ...(next.securityPolicy || {}),
-    enforceKyc: true,
-    enforceRiskRestriction: true,
-    requireFcm: false,
-    requireTrustedDevice: false,
-    requireIntegrity: false,
-    requireFace: false,
-    requireBiometric: false,
-  };
   return next;
 }
 
-export default function ProductionHealthPage() {
+export default function ProductionHealthPage({ access }) {
   const [health, setHealth] = React.useState(null);
   const [finance, setFinance] = React.useState(null);
   const [config, setConfig] = React.useState(null);
@@ -162,7 +139,7 @@ export default function ProductionHealthPage() {
     setSaving(true);
     setError('');
     try {
-      const payload = nextConfig?.securityMode === 'PRODUCTION' ? forceProductionPolicy(nextConfig) : nextConfig;
+      const payload = cloneConfig(nextConfig);
       const next = await coreApiRequest('/api/v73/admin/config', { method: 'PUT', body: JSON.stringify(payload) });
       setConfig(next);
       return next;
@@ -181,13 +158,16 @@ export default function ProductionHealthPage() {
 
   async function switchSecurityMode(mode) {
     if (!config || saving) return;
-    const next = mode === 'TEST' ? enterTestMode(config) : forceProductionPolicy(config);
+    const next = withSecurityMode(config, mode);
     setConfig(next);
     try { await persistConfig(next); } catch (_) { await load(); }
   }
 
   async function toggleSecurityFlag(key, checked) {
     if (!config || saving) return;
+    if (!checked && securityMode === 'PRODUCTION' &&
+        ['enforceKyc', 'enforceRiskRestriction', 'requireFace', 'requireIntegrity'].includes(key) &&
+        !window.confirm('Bạn đang tắt một lớp bảo mật trong PRODUCTION. Việc này có thể giảm khả năng kiểm soát tài xế. Bạn có chắc chắn muốn tiếp tục?')) return;
     const next = { ...config, securityPolicyVersion: 2, securityPolicy: { ...policy, [key]: checked } };
     setConfig(next);
     try { await persistConfig(next); } catch (_) { await load(); }
@@ -210,7 +190,7 @@ export default function ProductionHealthPage() {
   const policy = config?.securityPolicy || {};
   const securityMode = String(config?.securityMode || 'PRODUCTION').toUpperCase();
   const testMode = securityMode === 'TEST';
-  const disabledByMode = !testMode;
+  const disabledByMode = !config || saving; // Production và Test đều cho phép cấu hình
 
   const blockingCount = SECURITY_ITEMS.reduce((count, [key]) => count + (policy[key] ? 1 : 0), 0);
 
@@ -236,7 +216,7 @@ export default function ProductionHealthPage() {
         <div className="security-summary-card primary">
           <div className="security-summary-head"><Shield size={18} /><span>Trạng thái bảo mật</span></div>
           <strong>{testMode ? 'TEST MODE' : 'PRODUCTION MODE'}</strong>
-          <p>{testMode ? 'Admin có thể bật/tắt từng lớp xác thực để phục vụ kiểm thử.' : 'Toàn bộ lớp bảo mật tiền điều kiện Online đang được cưỡng chế đầy đủ.'}</p>
+          <p>{testMode ? 'Admin có thể bật/tắt từng lớp xác thực để phục vụ kiểm thử.' : 'Từng lớp bảo mật có thể bật/tắt, thay đổi được Backend áp dụng ngay.'}</p>
           <div className="security-badge-row">
             <span className={`status ${testMode ? 'status-pending' : 'status-active'}`}>{testMode ? 'KIỂM THỬ' : 'PRODUCTION'}</span>
             <span className="security-mini-chip">{blockingCount}/7 lớp đang bật</span>
@@ -293,11 +273,13 @@ export default function ProductionHealthPage() {
             <Sparkles size={18} />
           </header>
 
+          <RegistrationOtpPanel access={access} />
+
           <div className="security-mode-strip">
             <ModePill
               active={!testMode}
               title="Production Mode"
-              subtitle="Khóa toàn bộ lớp bảo mật chuẩn production"
+              subtitle="Vận hành thực tế · Có thể tùy chỉnh bảo mật"
               icon={ShieldCheck}
               tone="success"
               onClick={() => switchSecurityMode('PRODUCTION')}
@@ -305,7 +287,7 @@ export default function ProductionHealthPage() {
             <ModePill
               active={testMode}
               title="Test Mode"
-              subtitle="Cho phép Admin nới lỏng xác thực để test"
+              subtitle="Môi trường kiểm thử · Giữ nguyên công tắc đã chọn"
               icon={ShieldAlert}
               tone="warning"
               onClick={() => switchSecurityMode('TEST')}
@@ -315,9 +297,14 @@ export default function ProductionHealthPage() {
           <div className={`security-mode-banner ${testMode ? 'test' : 'production'}`}>
             <div>
               <b>{testMode ? 'Đang ở chế độ kiểm thử' : 'Đang ở chế độ production'}</b>
-              <p>{testMode ? 'Trong Test Mode, chỉ các công tắc bên dưới mới quyết định Driver có bị chặn Online hay không.' : 'Các lớp bảo mật cốt lõi luôn bật. Muốn nới lỏng để test, hãy chuyển sang Test Mode.'}</p>
+              <p>{testMode ? 'Bạn có thể điều chỉnh từng công tắc bên dưới cho Driver Online.' : 'Production vẫn cho phép bật/tắt từng lớp bảo mật. Các thay đổi áp dụng ngay lên Backend; hãy cân nhắc rủi ro trước khi tắt.'}</p>
             </div>
             {testMode ? <Clock3 size={18} /> : <CheckCircle2 size={18} />}
+          </div>
+
+          <div className="security-controls-heading">
+            <div><b>Điều kiện xác thực tài xế Online</b><p>Áp dụng độc lập với OTP đăng ký. Cho phép bật/tắt ở cả Production và Test.</p></div>
+            <span>{blockingCount}/{SECURITY_ITEMS.length} đang bật</span>
           </div>
 
           <div className="security-toggle-grid">
