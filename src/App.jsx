@@ -19,6 +19,7 @@ import AnalyticsReportsPage from './ReportsPage.jsx';
 import PaymentsV14Page from './PaymentsPage.jsx';
 import ServicePricingPage from './ServicePricingPage.jsx';
 import PromotionsAdminPage from './PromotionsAdminPage.jsx';
+import AdBannersAdminPage from './AdBannersAdminPage.jsx';
 import DashboardPage from './DashboardPage.jsx';
 import TripsPage from './TripsPage.jsx';
 import CustomersPage from './CustomersPage.jsx';
@@ -422,6 +423,7 @@ const nav=[
   ['kyc','Hồ sơ / KYC tài xế',UserRoundCheck,'drivers.review'],
   ['pricing','Dịch vụ & Giá cước',BadgeDollarSign,'pricing.view'],
   ['promotions','Khuyến mãi',CircleDollarSign,'promotions.view'],
+  ['ad-banners','Banner quảng cáo',Megaphone,'promotions.view'],
   ['payments','Thanh toán',WalletCards,'payments.view'],
   ['driver-point-topups','Điểm & nạp quỹ',BadgeDollarSign,'drivers.view'],
   ['settlement','Settlement / Đối soát',CircleDollarSign,'settlements.view'],
@@ -444,7 +446,7 @@ const navGroups=[
   {label:'VẬN HÀNH',items:['operations','trips','dispatch69','matching','driver-experience']},
   {label:'NGƯỜI DÙNG & ĐỐI TÁC',items:['customers','drivers','kyc','merchants']},
   {label:'COMMERCE',items:['commerce-orders']},
-  {label:'KINH DOANH',items:['pricing','promotions','payments','driver-point-topups','settlement','reports']},
+  {label:'KINH DOANH',items:['pricing','promotions','ad-banners','payments','driver-point-topups','settlement','reports']},
   {label:'TRUYỀN THÔNG',items:['broadcasts','support']},
   {label:'AN TOÀN & HỆ THỐNG',items:['trust','production-health','legal-settings','otp-management','admin-accounts','admin-roles','admin-audit','admin-profile','settings']}
 ];
@@ -1281,6 +1283,7 @@ function AdminApp(){
   if(page==='merchants')view=can('merchants.view')?<MerchantsPage/>:<PermissionDenied/>;
   if(page==='commerce-orders')view=can('orders.view')?<CommerceOrdersPage/>:<PermissionDenied/>;
   if(page==='promotions')view=can('promotions.view')?<PromotionsAdminPage/>:<PermissionDenied/>;
+  if(page==='ad-banners')view=can('promotions.view')?<AdBannersAdminPage/>:<PermissionDenied/>;
   if(page==='payments')view=can('payments.view')?<PaymentsV14Page/>:<PermissionDenied/>;
   if(page==='driver-point-topups')view=can('drivers.view')?<DriverPointTopupsPage/>:<PermissionDenied/>;
   if(page==='settlement')view=can('settlements.view')?<SettlementPage/>:<PermissionDenied/>;
