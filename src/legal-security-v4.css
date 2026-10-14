@@ -168,3 +168,25 @@
 .security-page .otp-v4{margin:14px 0 22px;border:1px solid #f2d7da;box-shadow:0 6px 20px rgba(27,42,70,.045)}
 .security-page .security-mode-strip{margin-top:18px}
 @media(max-width:620px){.security-page .security-controls-heading{align-items:flex-start;flex-direction:column}}
+
+/* v15: OTP must be the FIRST prominent control in Security Test Mode Center. */
+.security-otp-anchor{margin:18px 0 20px}
+.otp-v15{background:#fff;border:1px solid #e9dfe3;border-radius:18px;box-shadow:0 10px 30px rgba(30,35,55,.045);overflow:hidden;color:#1e2635;font-family:Inter,system-ui,Arial,sans-serif}
+.otp-v15 *{box-sizing:border-box}
+.otp-v15-head{display:flex;align-items:center;gap:14px;padding:20px 22px;border-bottom:1px solid #f0edf0}
+.otp-v15-head-icon{display:grid;place-items:center;flex:0 0 50px;height:50px;border-radius:14px;background:#fff1f2;color:#d51f38}
+.otp-v15-head>div:nth-child(2){flex:1;min-width:0}
+.otp-v15-caption{font-size:11px;letter-spacing:.05em;font-weight:800;color:#c91b34;margin-bottom:4px}
+.otp-v15-head h2{font-size:21px!important;line-height:1.35;margin:0 0 5px;color:#191f2b;font-weight:850}
+.otp-v15-head p{font-size:13px!important;line-height:1.45;margin:0;color:#667085}
+.otp-v15-sync{display:inline-flex;align-items:center;gap:6px;border-radius:100px;padding:8px 12px;font-size:12px;font-weight:750;white-space:nowrap;background:#fff3e8;color:#ad6422}
+.otp-v15-sync.ok{background:#ecf9f0;color:#16824e}
+.otp-v15-control-row{margin:16px 22px;padding:18px 20px;border:1px solid #e7ebf1;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:16px;background:#fcfcfd}
+.otp-v15-copy{display:flex;flex-direction:column;gap:5px}.otp-v15-copy strong{font-size:16px!important;color:#202938}.otp-v15-copy span{font-size:13px!important;color:#667085;line-height:1.45}
+.otp-v15-toggle{display:flex;align-items:center;gap:12px;cursor:pointer;flex:0 0 auto}.otp-v15-toggle input{position:absolute;opacity:0;width:1px;height:1px}.otp-v15-toggle-track{position:relative;width:56px;height:32px;border-radius:50px;background:#ddd;transition:background .18s}.otp-v15-toggle-track:before{content:'';position:absolute;left:4px;top:4px;width:24px;height:24px;background:white;border-radius:50%;box-shadow:0 2px 4px #0002;transition:transform .18s}.otp-v15-toggle input:checked+.otp-v15-toggle-track{background:#e11e36}.otp-v15-toggle input:checked+.otp-v15-toggle-track:before{transform:translateX(24px)}.otp-v15-toggle b{font-size:12px;color:#394356;min-width:65px}
+.otp-v15-toggle input:focus-visible+.otp-v15-toggle-track{outline:3px solid #ffb7c1;outline-offset:3px}.otp-v15-toggle input:disabled+.otp-v15-toggle-track{opacity:.45;cursor:not-allowed}
+.otp-v15-apps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 22px 14px}
+.otp-v15-apps>div{display:flex;align-items:center;gap:10px;border:1px solid #eff0f3;padding:14px;border-radius:12px;background:#fff}.otp-v15-apps svg{color:#d51f38;flex:0 0 auto}.otp-v15-apps strong{font-size:14px}.otp-v15-apps small{margin-left:auto;color:#768194;font-size:12px}
+.otp-v15-warning,.otp-v15-pending,.otp-v15-error,.otp-v15-success{margin:10px 22px;padding:11px 14px;border-radius:10px;font-size:13px!important;line-height:1.5;display:flex;gap:9px;align-items:center}.otp-v15-error{color:#ac2139;background:#fff0f2;border:1px solid #f4ccd3}.otp-v15-success{color:#18764c;background:#ebf8f1;border:1px solid #c8ebd9}.otp-v15-warning,.otp-v15-pending{color:#a35b11;background:#fff7ed;border:1px solid #fde7cb}
+.otp-v15-actions{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:15px 22px 18px;border-top:1px solid #f1f2f4}.otp-v15-actions>span{display:flex;align-items:center;gap:6px;color:#758195;font-size:12px}.otp-v15-actions code{font-size:11px;background:#f5f6f7;padding:4px 6px;border-radius:5px}.otp-v15-actions>div{display:flex;gap:9px}.otp-v15-actions .button{min-height:42px;font-size:13px!important}.otp-v15-readonly{padding:0 22px 14px;display:flex;align-items:center;gap:8px;color:#aa691d;font-size:12px}
+@media(max-width:780px){.otp-v15-head{flex-wrap:wrap}.otp-v15-sync{margin-left:64px}.otp-v15-control-row{flex-direction:column;align-items:flex-start}.otp-v15-apps{grid-template-columns:1fr}.otp-v15-actions{flex-direction:column;align-items:stretch}.otp-v15-actions>div{justify-content:flex-end}}

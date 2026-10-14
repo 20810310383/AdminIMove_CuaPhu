@@ -198,7 +198,7 @@ export default function ProductionHealthPage({ access }) {
     <section className="security-page">
       <header className="security-hero">
         <div>
-          <span className="security-eyebrow">TH79 iMove 1.4.0</span>
+          <span className="security-eyebrow">TH79 iMove · OTP v15</span>
           <h1>Security Test Mode Center</h1>
           <p>
             Quản lý Production Health, Security Test Mode và điều kiện cho tài xế Online từ một nguồn cấu hình duy nhất.
@@ -211,6 +211,10 @@ export default function ProductionHealthPage({ access }) {
       </header>
 
       {error && <div className="v73-alert"><AlertTriangle size={18} /><span>{error}</span></div>}
+
+      <div id="registration-otp-settings" className="security-otp-anchor">
+        <RegistrationOtpPanel access={access} />
+      </div>
 
       <div className="security-summary-grid">
         <div className="security-summary-card primary">
@@ -272,8 +276,6 @@ export default function ProductionHealthPage({ access }) {
             </div>
             <Sparkles size={18} />
           </header>
-
-          <RegistrationOtpPanel access={access} />
 
           <div className="security-mode-strip">
             <ModePill
