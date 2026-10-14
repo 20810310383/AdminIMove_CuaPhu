@@ -1,17 +1,9 @@
 import React from 'react';
-import {
-  Save,
-  RefreshCw,
-  ShieldCheck,
-  FileText,
-  MessageSquareLock,
-  Eye,
-  EyeOff,
-  TriangleAlert,
-} from 'lucide-react';
+import { ArrowRight, CalendarDays, Check, CheckCircle2, Clock3, Cloud, Eye, EyeOff, FileText, Globe2, LockKeyhole, MonitorSmartphone, RefreshCw, Save, ShieldCheck, Smartphone, TriangleAlert } from 'lucide-react';
 import { coreApiRequest } from './coreApi.js';
+import { hasPermission } from './adminApi.js';
 
-const empty = {
+const initialLegal = {
   termsTitle: 'Điều khoản sử dụng TH79 iMove',
   termsContent: '',
   privacyTitle: 'Chính sách bảo mật TH79 iMove',
@@ -20,395 +12,280 @@ const empty = {
   effectiveDate: '',
 };
 
-const defaultFeatures = {
-  otpVerificationEnabled: true,
-  legalInformationEnabled: true,
-};
-
 function toDateInput(value) {
   if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toISOString().slice(0, 10);
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
 }
 
-function ToggleCard({ icon, title, description, checked, onChange, danger }) {
-  return (
-    <div
-      style={{
-        border: `1px solid ${danger && !checked ? '#fecaca' : '#e5e7eb'}`,
-        borderRadius: 16,
-        padding: 16,
-        background: danger && !checked ? '#fff7f7' : '#fff',
-        display: 'flex',
-        gap: 14,
-        alignItems: 'center',
-      }}
-    >
-      <div
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: 13,
-          display: 'grid',
-          placeItems: 'center',
-          background: checked ? '#fff1f2' : '#f3f4f6',
-          color: checked ? '#ef233c' : '#6b7280',
-          flex: '0 0 auto',
-        }}
-      >
-        {icon}
-      </div>
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontWeight: 900, fontSize: 16 }}>{title}</div>
-        <div style={{ color: '#6b7280', marginTop: 4, lineHeight: 1.45, fontSize: 13 }}>
-          {description}
-        </div>
-      </div>
-      <label
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 8,
-          cursor: 'pointer',
-          fontWeight: 800,
-          color: checked ? '#15803d' : '#b91c1c',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={(e) => onChange(e.target.checked)}
-          style={{ width: 20, height: 20 }}
-        />
-        {checked ? 'Đang bật' : 'Đang tắt'}
-      </label>
-    </div>
-  );
+function normalizeLegal(legal = {}) {
+  return {
+    termsTitle: legal.termsTitle || initialLegal.termsTitle,
+    termsContent: legal.termsContent || '',
+    privacyTitle: legal.privacyTitle || initialLegal.privacyTitle,
+    privacyContent: legal.privacyContent || '',
+    version: legal.version || '1.0',
+    effectiveDate: toDateInput(legal.effectiveDate),
+  };
 }
 
-export default function LegalSettingsPage() {
-  const [form, setForm] = React.useState(empty);
-  const [features, setFeatures] = React.useState(defaultFeatures);
-  const [loading, setLoading] = React.useState(true);
-  const [saving, setSaving] = React.useState(false);
-  const [message, setMessage] = React.useState('');
-  const [error, setError] = React.useState('');
+export default function LegalSettingsPage({ access }) {
+  const canManage = !access || hasPermission(access, 'settings.manage');
+  const [form, setForm] = React.useState(initialLegal);
+  const [savedForm, setSavedForm] = React.useState(initialLegal);
+  const [visible, setVisible] = React.useState(true);
+  const [savedVisible, setSavedVisible] = React.useState(true);
   const [tab, setTab] = React.useState('terms');
+  const [updatedAt, setUpdatedAt] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [savingLegal, setSavingLegal] = React.useState(false);
+  const [savingVisibility, setSavingVisibility] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const [success, setSuccess] = React.useState('');
 
   const load = React.useCallback(async () => {
     setLoading(true);
     setError('');
+    setSuccess('');
     try {
-      const [legalData, featureData] = await Promise.all([
+      const [legalResult, settingsResult] = await Promise.all([
         coreApiRequest('/api/v171/admin/legal'),
         coreApiRequest('/api/v180/admin/app-settings'),
       ]);
-
-      const legal = legalData?.legal || {};
-      const nextFeatures = featureData?.settings || {};
-
-      setForm({
-        termsTitle: legal.termsTitle || empty.termsTitle,
-        termsContent: legal.termsContent || '',
-        privacyTitle: legal.privacyTitle || empty.privacyTitle,
-        privacyContent: legal.privacyContent || '',
-        version: legal.version || '1.0',
-        effectiveDate: toDateInput(legal.effectiveDate),
-      });
-
-      setFeatures({
-        otpVerificationEnabled:
-          typeof nextFeatures.otpVerificationEnabled === 'boolean'
-            ? nextFeatures.otpVerificationEnabled
-            : true,
-        legalInformationEnabled:
-          typeof nextFeatures.legalInformationEnabled === 'boolean'
-            ? nextFeatures.legalInformationEnabled
-            : true,
-      });
-    } catch (e) {
-      setError(e.message || String(e));
+      const nextLegal = normalizeLegal(legalResult?.legal);
+      const nextVisible = settingsResult?.settings?.legalInformationEnabled !== false;
+      setForm(nextLegal);
+      setSavedForm(nextLegal);
+      setVisible(nextVisible);
+      setSavedVisible(nextVisible);
+      setUpdatedAt(legalResult?.legal?.updatedAt || null);
+    } catch (err) {
+      setError(err?.message || 'Không thể tải nội dung pháp lý từ Backend.');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  React.useEffect(() => {
-    load();
-  }, [load]);
+  React.useEffect(() => { load(); }, [load]);
 
-  // Cho phép bật/tắt OTP độc lập với nội dung pháp lý chưa soạn xong.
-  async function saveFeatures() {
-    setSaving(true);
-    setError('');
-    setMessage('');
-    try {
-      await coreApiRequest('/api/v180/admin/app-settings', {
-        method: 'PUT',
-        body: JSON.stringify(features),
-      });
-      await load();
-      setMessage('Đã cập nhật bật/tắt OTP và trạng thái pháp lý trên Backend.');
-    } catch (e) {
-      setError(e?.message || String(e));
-    } finally {
-      setSaving(false);
-    }
+  const dirtyLegal = JSON.stringify(form) !== JSON.stringify(savedForm);
+  const dirtyVisibility = visible !== savedVisible;
+  const activeTitleKey = tab === 'terms' ? 'termsTitle' : 'privacyTitle';
+  const activeContentKey = tab === 'terms' ? 'termsContent' : 'privacyContent';
+  const hasValidContent = form.termsContent.trim().length >= 20 && form.privacyContent.trim().length >= 20;
+
+  function edit(key, value) {
+    setForm((old) => ({ ...old, [key]: value }));
+    setSuccess('');
   }
 
-  async function save() {
-    if (
-      features.legalInformationEnabled &&
-      (form.termsContent.trim().length < 20 || form.privacyContent.trim().length < 20)
-    ) {
-      setError('Khi đang bật thông tin pháp lý, vui lòng nhập đầy đủ Điều khoản và Chính sách bảo mật.');
+  async function saveDocument() {
+    if (loading || savingLegal || !canManage) return;
+    setError('');
+    setSuccess('');
+    if (!form.termsTitle.trim() || !form.privacyTitle.trim() || !form.version.trim()) {
+      setError('Vui lòng nhập tiêu đề cho cả hai tài liệu và phiên bản.');
       return;
     }
-
-    setSaving(true);
-    setError('');
-    setMessage('');
-
+    if (!hasValidContent) {
+      setError('Điều khoản sử dụng và Chính sách bảo mật đều phải có ít nhất 20 ký tự trước khi lưu.');
+      return;
+    }
+    setSavingLegal(true);
     try {
-      await coreApiRequest('/api/v180/admin/app-settings', {
+      const result = await coreApiRequest('/api/v171/admin/legal', {
         method: 'PUT',
-        body: JSON.stringify(features),
+        body: JSON.stringify({
+          ...form,
+          termsTitle: form.termsTitle.trim(),
+          privacyTitle: form.privacyTitle.trim(),
+          version: form.version.trim(),
+          effectiveDate: form.effectiveDate || null,
+        }),
       });
-
-      const hasLegalContent =
-        form.termsContent.trim().length >= 20 && form.privacyContent.trim().length >= 20;
-
-      if (features.legalInformationEnabled || hasLegalContent) {
-        await coreApiRequest('/api/v171/admin/legal', {
-          method: 'PUT',
-          body: JSON.stringify({
-            ...form,
-            effectiveDate: form.effectiveDate || null,
-          }),
-        });
-      }
-
-      await load();
-      setMessage('Đã lưu cấu hình trên Core Backend. User, Driver và Merchant sẽ nhận nội dung mới khi mở trang.');
-    } catch (e) {
-      setError(e.message || String(e));
+      const next = normalizeLegal(result?.legal || form);
+      setForm(next);
+      setSavedForm(next);
+      setUpdatedAt(result?.legal?.updatedAt || new Date().toISOString());
+      setSuccess('Đã cập nhật Điều khoản và Chính sách bảo mật. Các app sẽ tải nội dung mới khi mở trang.');
+    } catch (err) {
+      setError(err?.message || 'Không lưu được nội dung pháp lý.');
     } finally {
-      setSaving(false);
+      setSavingLegal(false);
     }
   }
 
-  if (loading) {
-    return (
-      <section className="page">
-        <div className="card">
-          <RefreshCw className="spin" size={20} /> Đang tải cài đặt...
-        </div>
-      </section>
-    );
+  async function saveVisibility() {
+    if (loading || savingVisibility || !canManage || !dirtyVisibility) return;
+    setError('');
+    setSuccess('');
+    setSavingVisibility(true);
+    try {
+      // Chỉ cập nhật hiển thị pháp lý, không thay đổi otpVerificationEnabled.
+      const result = await coreApiRequest('/api/v180/admin/app-settings', {
+        method: 'PUT',
+        body: JSON.stringify({ legalInformationEnabled: visible }),
+      });
+      const next = result?.settings?.legalInformationEnabled !== false;
+      setVisible(next);
+      setSavedVisible(next);
+      setSuccess(`Đã ${next ? 'bật' : 'tắt'} hiển thị pháp lý cho User, Driver và Merchant.`);
+    } catch (err) {
+      setError(err?.message || 'Không lưu được trạng thái hiển thị.');
+    } finally {
+      setSavingVisibility(false);
+    }
   }
 
-  const activeContent = tab === 'terms' ? form.termsContent : form.privacyContent;
-  const activeTitle = tab === 'terms' ? form.termsTitle : form.privacyTitle;
+  function refresh() {
+    if ((dirtyLegal || dirtyVisibility) && !window.confirm('Bạn có thay đổi chưa lưu. Tải lại sẽ bỏ các chỉnh sửa đó. Tiếp tục?')) return;
+    load();
+  }
+
+  const documents = [
+    { key: 'terms', title: 'Điều khoản sử dụng', subtitle: 'Quy định & trách nhiệm', icon: FileText, count: form.termsContent.length },
+    { key: 'privacy', title: 'Chính sách bảo mật', subtitle: 'Thu thập & bảo vệ dữ liệu', icon: LockKeyhole, count: form.privacyContent.length },
+  ];
+  const completedCount = documents.filter((doc) => doc.count >= 20).length;
+  const prettyDate = form.effectiveDate
+    ? new Date(`${form.effectiveDate}T12:00:00`).toLocaleDateString('vi-VN')
+    : 'Chưa thiết lập';
 
   return (
-    <section className="page legal-settings-page">
-      <div className="page-head">
-        <div>
-          <h1>Xác thực OTP & Chính sách ứng dụng</h1>
-          <p>Tắt/bật trực tiếp cho User, Driver và Merchant mà không cần build lại Backend.</p>
+    <section className="page legal-v4" aria-label="Quản trị điều khoản và chính sách TH79 iMove">
+      <header className="legal-v4-hero">
+        <div className="legal-v4-head-copy">
+          <div className="legal-v4-breadcrumb"><span>QUẢN TRỊ ỨNG DỤNG</span><ArrowRight size={13} /><span>NỘI DUNG PHÁP LÝ</span></div>
+          <h1>Điều khoản & Bảo mật</h1>
+          <p>Quản lý nội dung pháp lý tại một nơi. Mọi thay đổi được đồng bộ đến ứng dụng TH79 iMove.</p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="button" type="button" onClick={load}>
-            <RefreshCw size={16} /> Làm mới
+        <div className="legal-v4-head-actions">
+          <button type="button" className="legal-v4-btn secondary" disabled={loading || savingLegal || savingVisibility} onClick={refresh}>
+            <RefreshCw size={17} /> Làm mới
           </button>
-          <button className="button button-primary" type="button" disabled={saving} onClick={save}>
-            <Save size={16} /> {saving ? 'Đang lưu...' : 'Lưu & áp dụng'}
-          </button>
-        </div>
-      </div>
-
-      {error && <div className="alert error">{error}</div>}
-      {message && <div className="alert success">{message}</div>}
-
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div style={{ fontWeight: 900, fontSize: 18, marginBottom: 12 }}>Tính năng đăng ký & pháp lý</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(340px,1fr))', gap: 12 }}>
-          <ToggleCard
-            icon={<MessageSquareLock size={23} />}
-            title="Xác thực OTP khi đăng ký"
-            description="Bật: User/Driver/Merchant phải nhận và nhập OTP. Tắt: các app bỏ qua bước SMS OTP và đăng ký trực tiếp."
-            checked={features.otpVerificationEnabled}
-            onChange={(value) =>
-              setFeatures((old) => ({ ...old, otpVerificationEnabled: value }))
-            }
-            danger
-          />
-
-          <ToggleCard
-            icon={features.legalInformationEnabled ? <Eye size={23} /> : <EyeOff size={23} />}
-            title="Hiển thị Điều khoản & Chính sách bảo mật"
-            description="Tắt: ứng dụng ẩn phần thông tin pháp lý trong luồng đăng ký và trang pháp lý không hiển thị nội dung. Nội dung vẫn được giữ lại để bật lại sau."
-            checked={features.legalInformationEnabled}
-            onChange={(value) =>
-              setFeatures((old) => ({ ...old, legalInformationEnabled: value }))
-            }
-          />
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
-          <button type="button" className="button button-primary" disabled={saving} onClick={saveFeatures}>
-            <Save size={16} /> Lưu trạng thái OTP & hiển thị
+          <button type="button" className="legal-v4-btn primary" disabled={loading || savingLegal || !canManage || !dirtyLegal} onClick={saveDocument}>
+            <Save size={17} /> {savingLegal ? 'Đang lưu...' : 'Lưu nội dung'}
           </button>
         </div>
+      </header>
 
-        {!features.otpVerificationEnabled && (
-          <div
-            style={{
-              marginTop: 14,
-              padding: 13,
-              borderRadius: 13,
-              background: '#fff7ed',
-              color: '#9a3412',
-              display: 'flex',
-              gap: 10,
-              alignItems: 'flex-start',
-            }}
-          >
-            <TriangleAlert size={20} style={{ marginTop: 1, flex: '0 0 auto' }} />
-            <div>
-              <strong>OTP đang tắt.</strong> Số điện thoại mới sẽ không được xác minh bằng SMS khi đăng ký.
-              Chỉ nên tắt trong giai đoạn test hoặc khi bạn chủ động chấp nhận rủi ro này.
+      {error && <div className="legal-v4-alert error" role="alert"><TriangleAlert size={19} />{error}</div>}
+      {success && <div className="legal-v4-alert success" role="status"><CheckCircle2 size={19} />{success}</div>}
+      {!canManage && <div className="legal-v4-alert info" role="status"><LockKeyhole size={18} /> Tài khoản chỉ có quyền xem. Cần quyền settings.manage để chỉnh sửa hoặc xuất bản.</div>}
+
+      {loading ? (
+        <div className="legal-v4-loading" role="status"><RefreshCw className="spin" size={20} /> Đang tải dữ liệu pháp lý từ Backend...</div>
+      ) : (
+        <>
+          <div className="legal-v4-overview" aria-label="Tổng quan tài liệu">
+            <div className="legal-v4-stat">
+              <span className="legal-v4-stat-icon red"><FileText size={20} /></span>
+              <div><small>TÀI LIỆU ĐÃ SOẠN</small><strong>{completedCount}<em> / 2</em></strong><span>{completedCount === 2 ? 'Đã đủ nội dung' : 'Còn tài liệu cần hoàn thiện'}</span></div>
+            </div>
+            <div className="legal-v4-stat">
+              <span className="legal-v4-stat-icon blue"><Clock3 size={20} /></span>
+              <div><small>PHIÊN BẢN HIỆN TẠI</small><strong>v{form.version || '1.0'}</strong><span>Hiệu lực: {prettyDate}</span></div>
+            </div>
+            <div className="legal-v4-stat">
+              <span className="legal-v4-stat-icon green"><Cloud size={20} /></span>
+              <div><small>ĐỒNG BỘ ỨNG DỤNG</small><strong className="legal-v4-stat-caption">User · Driver · Merchant</strong><span>Tự tải nội dung mới từ Backend</span></div>
             </div>
           </div>
-        )}
-      </div>
 
-      <div className="card" style={{ marginBottom: 16, opacity: features.legalInformationEnabled ? 1 : 0.72 }}>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'minmax(120px,180px) minmax(180px,1fr) minmax(180px,1fr)',
-            gap: 12,
-          }}
-        >
-          <label>
-            <span>Phiên bản</span>
-            <input
-              value={form.version}
-              onChange={(e) => setForm((v) => ({ ...v, version: e.target.value }))}
-              placeholder="1.0"
-            />
-          </label>
-          <label>
-            <span>Ngày hiệu lực</span>
-            <input
-              type="date"
-              value={form.effectiveDate}
-              onChange={(e) => setForm((v) => ({ ...v, effectiveDate: e.target.value }))}
-            />
-          </label>
-          <div>
-            <span style={{ display: 'block', marginBottom: 6 }}>API công khai</span>
-            <code>/api/v171/legal</code>
-            <br />
-            <code>/api/v180/app-settings</code>
-          </div>
-        </div>
-      </div>
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0,1.25fr) minmax(320px,.75fr)',
-          gap: 16,
-          alignItems: 'start',
-        }}
-      >
-        <div className="card">
-          <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-            <button
-              type="button"
-              className={`button ${tab === 'terms' ? 'button-primary' : ''}`}
-              onClick={() => setTab('terms')}
-            >
-              <FileText size={16} /> Điều khoản
-            </button>
-            <button
-              type="button"
-              className={`button ${tab === 'privacy' ? 'button-primary' : ''}`}
-              onClick={() => setTab('privacy')}
-            >
-              <ShieldCheck size={16} /> Bảo mật
-            </button>
-          </div>
-
-          {tab === 'terms' ? (
-            <>
-              <label>
-                <span>Tiêu đề Điều khoản</span>
-                <input
-                  value={form.termsTitle}
-                  onChange={(e) => setForm((v) => ({ ...v, termsTitle: e.target.value }))}
-                />
-              </label>
-              <label style={{ display: 'block', marginTop: 12 }}>
-                <span>Nội dung Điều khoản sử dụng</span>
-                <textarea
-                  rows={22}
-                  value={form.termsContent}
-                  onChange={(e) => setForm((v) => ({ ...v, termsContent: e.target.value }))}
-                  placeholder="Nhập toàn bộ Điều khoản sử dụng..."
-                  style={{ width: '100%', resize: 'vertical' }}
-                />
-              </label>
-            </>
-          ) : (
-            <>
-              <label>
-                <span>Tiêu đề Chính sách bảo mật</span>
-                <input
-                  value={form.privacyTitle}
-                  onChange={(e) => setForm((v) => ({ ...v, privacyTitle: e.target.value }))}
-                />
-              </label>
-              <label style={{ display: 'block', marginTop: 12 }}>
-                <span>Nội dung Chính sách bảo mật</span>
-                <textarea
-                  rows={22}
-                  value={form.privacyContent}
-                  onChange={(e) => setForm((v) => ({ ...v, privacyContent: e.target.value }))}
-                  placeholder="Nhập toàn bộ Chính sách bảo mật..."
-                  style={{ width: '100%', resize: 'vertical' }}
-                />
-              </label>
-            </>
-          )}
-        </div>
-
-        <aside className="card" style={{ position: 'sticky', top: 84 }}>
-          <div style={{ fontWeight: 900, fontSize: 18, marginBottom: 4 }}>Xem trước trên ứng dụng</div>
-          <div style={{ color: '#7b7f8b', fontSize: 13, marginBottom: 16 }}>
-            Phiên bản {form.version || '1.0'}
-            {form.effectiveDate ? ` · Hiệu lực ${form.effectiveDate}` : ''}
-          </div>
-          {!features.legalInformationEnabled ? (
-            <div style={{ padding: 18, borderRadius: 14, background: '#f3f4f6', color: '#6b7280' }}>
-              Phần Điều khoản & Chính sách bảo mật hiện đang <strong>TẮT</strong> trên ứng dụng.
+          <div className="legal-v4-publish">
+            <div className="legal-v4-publish-copy">
+              <span className={`legal-v4-publish-icon ${visible ? 'active' : ''}`}>{visible ? <Eye size={21} /> : <EyeOff size={21} />}</span>
+              <div>
+                <div className="legal-v4-row-title"><h2>Hiển thị trên ứng dụng</h2><span className={`legal-v4-live ${savedVisible ? 'on' : 'off'}`}><i /> {savedVisible ? 'Đang hiển thị' : 'Đang ẩn'}</span></div>
+                <p>Khi bật, khách hàng, tài xế và đối tác có thể truy cập nội dung pháp lý. Tắt hiển thị không xóa dữ liệu đã lưu.</p>
+              </div>
             </div>
-          ) : (
-            <>
-              <div style={{ fontWeight: 900, fontSize: 22, lineHeight: 1.25, marginBottom: 14 }}>
-                {activeTitle}
+            <div className="legal-v4-publish-tools">
+              <label className="legal-v4-switch">
+                <input type="checkbox" checked={visible} disabled={!canManage || savingVisibility} onChange={(e) => { setVisible(e.target.checked); setSuccess(''); }} aria-label="Bật hoặc tắt hiển thị Điều khoản và Chính sách trên ứng dụng" />
+                <span className="legal-v4-switch-track" aria-hidden="true" />
+                <b>{visible ? 'Bật' : 'Tắt'}</b>
+              </label>
+              <button type="button" className="legal-v4-btn tertiary" disabled={!canManage || !dirtyVisibility || savingVisibility} onClick={saveVisibility}>
+                <Save size={16} /> {savingVisibility ? 'Đang lưu...' : 'Lưu trạng thái'}
+              </button>
+              {dirtyVisibility && <small className="legal-v4-pending">Chưa lưu thay đổi</small>}
+            </div>
+          </div>
+
+          <div className="legal-v4-workspace">
+            <div className="legal-v4-main">
+              <section className="legal-v4-card legal-v4-editor" aria-label="Trình soạn thảo tài liệu">
+                <div className="legal-v4-card-heading">
+                  <div><span className="legal-v4-section-index">01 / BIÊN TẬP</span><h2>Nội dung pháp lý</h2><p>Chọn tài liệu và chỉnh sửa trực tiếp bên dưới.</p></div>
+                  {dirtyLegal ? <span className="legal-v4-dirty"><i /> Chưa lưu</span> : <span className="legal-v4-synced"><Check size={13} /> Đã đồng bộ</span>}
+                </div>
+                <div className="legal-v4-tabs" role="tablist" aria-label="Chọn tài liệu pháp lý">
+                  {documents.map((doc) => {
+                    const Icon = doc.icon;
+                    return (
+                      <button key={doc.key} type="button" role="tab" aria-selected={tab === doc.key} className={`legal-v4-tab ${tab === doc.key ? 'active' : ''}`} onClick={() => setTab(doc.key)}>
+                        <span className="legal-v4-tab-icon"><Icon size={20} /></span>
+                        <span className="legal-v4-tab-text"><b>{doc.title}</b><small>{doc.subtitle}</small></span>
+                        <span className={`legal-v4-tab-tick ${doc.count >= 20 ? 'complete' : ''}`}>{doc.count >= 20 ? <Check size={15} /> : '!'}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="legal-v4-editor-inner">
+                  <div className="legal-v4-editor-top"><div><strong>{tab === 'terms' ? 'Biên soạn điều khoản' : 'Biên soạn chính sách'}</strong><span>Nội dung được lưu an toàn trên Backend</span></div><span className="legal-v4-plaintext">VĂN BẢN THUẦN</span></div>
+                  <label className="legal-v4-field">
+                    <span>Tiêu đề tài liệu <b>*</b></span>
+                    <input value={form[activeTitleKey]} onChange={(e) => edit(activeTitleKey, e.target.value)} maxLength={240} disabled={!canManage} placeholder="Nhập tiêu đề hiển thị trên ứng dụng" />
+                  </label>
+                  <label className="legal-v4-field legal-v4-content-field">
+                    <span>Nội dung chi tiết <b>*</b></span>
+                    <textarea value={form[activeContentKey]} onChange={(e) => edit(activeContentKey, e.target.value)} maxLength={30000} disabled={!canManage} placeholder={tab === 'terms' ? 'Ví dụ bố cục:\n\n1. Giới thiệu dịch vụ\n2. Quyền và nghĩa vụ người dùng\n3. Đặt và hủy chuyến\n4. Trách nhiệm các bên...' : 'Ví dụ bố cục:\n\n1. Dữ liệu được thu thập\n2. Mục đích và phạm vi sử dụng\n3. Bảo mật, lưu trữ dữ liệu\n4. Quyền của chủ thể dữ liệu...'} />
+                  </label>
+                  <div className="legal-v4-editor-counter"><span>{form[activeContentKey].length.toLocaleString('vi-VN')} / 30.000 ký tự</span><span>{form[activeContentKey].trim().length >= 20 ? <><Check size={14} /> Đã đủ độ dài</> : 'Tối thiểu 20 ký tự'}</span></div>
+                </div>
+                <div className="legal-v4-editor-foot">
+                  <div className="legal-v4-foot-note"><ShieldCheck size={18} /><span>Cần có nội dung cho <b>cả hai tài liệu</b> để lưu phiên bản mới.</span></div>
+                  <button type="button" className="legal-v4-btn primary" disabled={savingLegal || !canManage || !dirtyLegal} onClick={saveDocument}>
+                    <Save size={16} /> {savingLegal ? 'Đang lưu...' : 'Lưu thay đổi'}
+                  </button>
+                </div>
+              </section>
+
+              <section className="legal-v4-card legal-v4-version" aria-label="Thiết lập phiên bản">
+                <div className="legal-v4-card-heading compact"><div><span className="legal-v4-section-index">02 / PHIÊN BẢN</span><h2>Thông tin phát hành</h2></div></div>
+                <div className="legal-v4-version-fields">
+                  <label className="legal-v4-field"><span>Phiên bản</span><input value={form.version} onChange={(e) => edit('version', e.target.value)} maxLength={40} disabled={!canManage} placeholder="Ví dụ: 1.0" /></label>
+                  <label className="legal-v4-field"><span><CalendarDays size={15} /> Ngày hiệu lực</span><input type="date" value={form.effectiveDate} onChange={(e) => edit('effectiveDate', e.target.value)} disabled={!canManage} /></label>
+                </div>
+                <div className="legal-v4-last-update"><Clock3 size={16} /><span>Cập nhật lần cuối: <b>{updatedAt ? new Date(updatedAt).toLocaleString('vi-VN') : 'Chưa có bản cập nhật'}</b></span></div>
+              </section>
+            </div>
+
+            <aside className="legal-v4-card legal-v4-preview" aria-label="Bản xem trước nội dung trên ứng dụng">
+              <div className="legal-v4-card-heading preview-heading"><div><span className="legal-v4-section-index">03 / XEM TRƯỚC</span><h2>Giao diện trên điện thoại</h2><p>Xem thử nội dung khi người dùng mở trong app.</p></div><MonitorSmartphone size={23} /></div>
+              <div className="legal-v4-device-area">
+                <div className="legal-v4-device">
+                  <div className="legal-v4-device-camera" />
+                  <div className="legal-v4-device-screen">
+                    <div className="legal-v4-device-status"><span>9:41</span><span>●●● <Smartphone size={12} /></span></div>
+                    <div className="legal-v4-appbar"><span className="legal-v4-app-logo">i<span>MOVE</span></span><span className="legal-v4-appbar-label">Trung tâm hỗ trợ</span></div>
+                    <div className="legal-v4-document-view">
+                      <div className="legal-v4-view-icon">{tab === 'terms' ? <FileText size={22} /> : <ShieldCheck size={22} />}</div>
+                      <div className="legal-v4-view-kind">TH79 iMove · {tab === 'terms' ? 'Điều khoản' : 'Quyền riêng tư'}</div>
+                      <h3>{form[activeTitleKey] || 'Chưa có tiêu đề'}</h3>
+                      <div className="legal-v4-view-meta">Phiên bản {form.version || '1.0'} {form.effectiveDate ? `· ${prettyDate}` : ''}</div>
+                      <div className="legal-v4-document-text">{form[activeContentKey] || 'Bản xem trước sẽ tự động hiển thị khi bạn nhập nội dung ở khung soạn thảo.'}</div>
+                    </div>
+                    <div className="legal-v4-home-indicator" />
+                  </div>
+                </div>
               </div>
-              <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.65, maxHeight: 560, overflow: 'auto', fontSize: 14 }}>
-                {activeContent || 'Chưa có nội dung.'}
-              </div>
-            </>
-          )}
-        </aside>
-      </div>
+              <div className="legal-v4-preview-footer"><Globe2 size={18} /><p>Bản xem trước là mô phỏng nội dung, không phải ảnh chụp màn hình thật. Các app sẽ tải bản đã lưu khi mở trang pháp lý.</p></div>
+            </aside>
+          </div>
+        </>
+      )}
     </section>
   );
 }
