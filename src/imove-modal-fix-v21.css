@@ -1,0 +1,83 @@
+/* v21: Portal modals bypass transformed/scrolled Admin content ancestors.
+   Applies only to Banner, Promotions and Service Pricing forms with this class. */
+body > .imove-overlay-v21 {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: max(12px, env(safe-area-inset-top)) 14px max(12px, env(safe-area-inset-bottom)) !important;
+  background: rgba(19, 23, 30, 0.55) !important;
+  overscroll-behavior: contain;
+  overflow: auto !important;
+  box-sizing: border-box;
+  isolation: isolate;
+}
+body > .imove-overlay-v21 > .im-banner-dialog,
+body > .imove-overlay-v21 > .v14-modal {
+  flex: 0 1 auto;
+  display: block;
+  position: relative;
+  width: min(900px, 100%) !important;
+  max-width: 100% !important;
+  max-height: calc(100dvh - 28px) !important;
+  min-height: 0;
+  min-width: 0;
+  margin: 0 !important;
+  padding: 18px 20px !important;
+  border-radius: 20px;
+  background: #fff;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  box-shadow: 0 30px 100px rgba(0, 0, 0, .28);
+}
+body > .imove-overlay-v21 > .im-banner-dialog { width: min(970px, 100%) !important; }
+body > .imove-overlay-v21 > .v14-modal:not(.wide) { width: min(740px, 100%) !important; }
+body > .imove-overlay-v21 > :is(.v14-modal, .im-banner-dialog) > header {
+  position: sticky;
+  top: -18px;
+  z-index: 4;
+  background: #fff;
+  padding: 10px 2px 14px !important;
+  margin: -10px 0 12px;
+  border-bottom: 1px solid #e9eaf0;
+}
+body > .imove-overlay-v21 > :is(.v14-modal, .im-banner-dialog) > footer {
+  position: sticky;
+  bottom: -18px;
+  z-index: 4;
+  background: #fff;
+  margin: 12px 0 -18px;
+  padding: 14px 2px 18px !important;
+  border-top: 1px solid #e9eaf0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+body > .imove-overlay-v21 .im-banner-editor,
+body > .imove-overlay-v21 .v14-form-grid { min-width: 0; }
+body > .imove-overlay-v21 .im-banner-fields label,
+body > .imove-overlay-v21 .v14-form-grid label { min-width: 0; }
+body > .imove-overlay-v21 :is(input, textarea, select) { box-sizing: border-box; max-width: 100%; }
+body > .imove-overlay-v21 .im-banner-upload { overflow-wrap:anywhere; }
+body > .imove-overlay-v21 .im-banner-fields :is(input, textarea),
+body > .imove-overlay-v21 .v14-form-grid :is(input, select) { font-size: 13px; }
+@media (max-width: 780px) {
+  body > .imove-overlay-v21 > :is(.im-banner-dialog, .v14-modal) {
+    padding: 14px !important; max-height: calc(100dvh - 20px) !important;
+    border-radius: 15px;
+  }
+  body > .imove-overlay-v21 > :is(.im-banner-dialog, .v14-modal) > header { top: -14px; }
+  body > .imove-overlay-v21 > :is(.im-banner-dialog, .v14-modal) > footer { bottom: -14px; }
+  body > .imove-overlay-v21 .im-banner-editor,
+  body > .imove-overlay-v21 .v14-form-grid { grid-template-columns: minmax(0, 1fr); }
+  body > .imove-overlay-v21 .v14-service-checks { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-height: 520px) {
+  body > .imove-overlay-v21 { align-items: flex-start !important; }
+  body > .imove-overlay-v21 > :is(.im-banner-dialog, .v14-modal) { max-height: calc(100dvh - 20px) !important; }
+}

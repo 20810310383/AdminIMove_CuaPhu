@@ -1,4 +1,6 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
+import './imove-modal-fix-v21.css';
 import {
   Bike, Car, Package, ShoppingBasket, UtensilsCrossed, BusFront, Sparkles,
   Plus, RefreshCw, Save, History, Power, Pencil, Copy, Clock3,
@@ -140,7 +142,7 @@ export default function ServicePricingPage(){
 
     <section className="card v14-panel"><div className="v14-section-head"><div><h2>Lịch sử phiên bản giá</h2><p>Chỉnh sửa trực tiếp chỉ áp dụng cho DRAFT/bảng giá chưa hiệu lực.</p></div></div><div className="v14-table-wrap"><table><thead><tr><th>Dịch vụ</th><th>Version</th><th>Trạng thái</th><th>Mở cửa</th><th>Giá/km</th><th>Giá/phút</th><th>Hiệu lực</th><th>Thao tác</th></tr></thead><tbody>{fares.map(x=>{const action=fareEditMode(x);return <tr key={x._id}><td><b>{x.serviceCode}</b><small className="v14-subline">{SERVICE_LABELS[x.serviceCode]||x.serviceCode}</small></td><td>v{x.version}</td><td><span className={`v14-status ${x.status==='ACTIVE'?'success':'pending'}`}>{x.status}</span></td><td>{formatVnd(x.baseFare)}</td><td>{formatVnd(x.distanceTiers?.[0]?.pricePerKm)}</td><td>{formatVnd(x.pricePerMinute)}</td><td>{x.effectiveFrom?new Date(x.effectiveFrom).toLocaleString('vi-VN'):'Ngay khi ACTIVE'}</td><td><button className="button button-small" onClick={()=>openFareEditor(x)}>{action==='EDIT'?<><Pencil size={13}/>Chỉnh sửa</>:<><Copy size={13}/>Tạo phiên bản</>}</button></td></tr>})}</tbody></table></div></section>
 
-    {open&&<div className="v14-modal-backdrop" onMouseDown={()=>!saving&&setOpen(false)}><form className="v14-modal" onMouseDown={e=>e.stopPropagation()} onSubmit={save}><header><div><h2>{modeLabel(mode)}</h2><p>{mode==='EDIT'?'Phiên bản này chưa có hiệu lực nên có thể cập nhật trực tiếp.':mode==='NEW_VERSION'?`Tạo phiên bản mới từ giá hiện tại v${sourceFare?.version||0}; chuyến cũ vẫn giữ fareSnapshot.`:'Tạo bảng giá versioned cho từng loại xe.'}</p></div><button type="button" disabled={saving} onClick={()=>setOpen(false)}>×</button></header>
+    {open&&createPortal(<div className="imove-overlay-v21" onMouseDown={()=>!saving&&setOpen(false)}><form role="dialog" aria-modal="true" aria-label="Quản lý giá cước" className="v14-modal" onMouseDown={e=>e.stopPropagation()} onSubmit={save}><header><div><h2>{modeLabel(mode)}</h2><p>{mode==='EDIT'?'Phiên bản này chưa có hiệu lực nên có thể cập nhật trực tiếp.':mode==='NEW_VERSION'?`Tạo phiên bản mới từ giá hiện tại v${sourceFare?.version||0}; chuyến cũ vẫn giữ fareSnapshot.`:'Tạo bảng giá versioned cho từng loại xe.'}</p></div><button type="button" disabled={saving} onClick={()=>setOpen(false)}>×</button></header>
       <div className="v14-form-grid">
         <label>Dịch vụ<select value={form.serviceCode} disabled={mode!=='CREATE'} onChange={e=>setForm({...form,serviceCode:e.target.value})}>{REQUIRED_SERVICE_CODES.map(x=><option key={x} value={x}>{SERVICE_LABELS[x]}</option>)}</select></label>
         <label>Khu vực<input value={form.areaCode} disabled={mode!=='CREATE'} onChange={e=>setForm({...form,areaCode:e.target.value.toUpperCase()})}/></label>
@@ -156,6 +158,6 @@ export default function ServicePricingPage(){
       </div>
       {mode==='NEW_VERSION'&&<div className="v14-version-note"><Copy size={16}/><span><b>Tạo phiên bản mới từ giá hiện tại.</b> Không sửa document ACTIVE đang dùng; Backend sẽ chọn version ACTIVE mới nhất theo từng loại xe.</span></div>}
       <footer><button type="button" className="button" disabled={saving} onClick={()=>setOpen(false)}>Hủy</button><button className="button button-primary" disabled={saving}><Save size={15}/>{saving?'Đang lưu...':mode==='EDIT'?'Lưu chỉnh sửa':'Lưu phiên bản'}</button></footer>
-    </form></div>}
+    </form></div>, document.body)}
   </section>;
 }

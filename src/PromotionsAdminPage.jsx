@@ -1,4 +1,6 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
+import './imove-modal-fix-v21.css';
 import { BadgePercent, Plus, RefreshCw, Save, Pencil, Power } from 'lucide-react';
 import { coreApiRequest } from './coreApi.js';
 import { REQUIRED_SERVICE_CODES, SERVICE_LABELS, formatVnd } from './servicePricingModel.js';
@@ -137,8 +139,8 @@ export default function PromotionsAdminPage() {
       </table></div>
     </section>
 
-    {open && <div className="v14-modal-backdrop" onMouseDown={() => setOpen(false)}>
-      <form className="v14-modal wide" onMouseDown={e => e.stopPropagation()} onSubmit={save}>
+    {open && createPortal(<div className="imove-overlay-v21" onMouseDown={() => setOpen(false)}>
+      <form role="dialog" aria-modal="true" aria-label="Quản lý khuyến mãi" className="v14-modal wide" onMouseDown={e => e.stopPropagation()} onSubmit={save}>
         <header><div><h2>{editingCode ? 'Chỉnh sửa khuyến mãi' : 'Tạo mã khuyến mãi'}</h2><p>Thiết lập phạm vi áp dụng và giới hạn sử dụng.</p></div><button type="button" onClick={() => setOpen(false)}>×</button></header>
         <div className="v14-form-grid">
           <label>Mã<input required disabled={Boolean(editingCode)} value={form.code} onChange={e => setForm({...form, code:e.target.value.toUpperCase()})}/></label>
@@ -162,6 +164,6 @@ export default function PromotionsAdminPage() {
         {saveError && <div className="v73-alert">{saveError}</div>}
         <footer><button className="button button-primary" disabled={saving}><Save size={15}/>{saving ? 'Đang lưu...' : (editingCode ? 'Lưu thay đổi' : 'Lưu mã')}</button></footer>
       </form>
-    </div>}
+    </div>, document.body)}
   </section>;
 }
