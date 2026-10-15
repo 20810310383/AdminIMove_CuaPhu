@@ -1,3 +1,4 @@
+import AdminOverlayPortal from './AdminOverlayPortal.jsx';
 import React from 'react';
 import {
   BadgeDollarSign,
@@ -175,7 +176,7 @@ export default function DriverPointTopupsPage(){
       </tr>})}</tbody>
     </table>{!loading&&!rows.length&&<div className="v14-empty">Chưa có yêu cầu nạp điểm phù hợp.</div>}{loading&&<div className="v14-empty">Đang tải yêu cầu...</div>}</div></section>
 
-    {adjustOpen&&<div className="modal-backdrop" role="presentation" onMouseDown={()=>!adjustBusy&&setAdjustOpen(false)}>
+    {adjustOpen&&<AdminOverlayPortal><div className="modal-backdrop" role="presentation" onMouseDown={()=>!adjustBusy&&setAdjustOpen(false)}>
       <section className="modal driver-point-adjust-modal" role="dialog" aria-modal="true" onMouseDown={e=>e.stopPropagation()}>
         <header><div><h2>Tạo giao dịch điểm tài xế</h2><p>Cộng/trừ trực tiếp quỹ điểm, không thay đổi tiền mặt thu từ khách.</p></div><button type="button" className="icon-button" onClick={()=>!adjustBusy&&setAdjustOpen(false)}><X size={18}/></button></header>
         <form onSubmit={saveAdjustment}>
@@ -196,6 +197,6 @@ export default function DriverPointTopupsPage(){
         </form>
         <section className="driver-point-adjust-history"><header><History size={15}/><b>Điều chỉnh gần nhất</b></header>{adjustments.slice(0,8).map(a=><div key={a.id}><span>{a.direction==='DEBIT'?<Minus size={13}/>:<Plus size={13}/>}<b>{a.points>0?'+':''}{num(a.points)} điểm</b></span><small>{a.reason||a.reference||'Điều chỉnh bởi Admin'} · {date(a.createdAt)}</small></div>)}</section>
       </section>
-    </div>}
+    </div></AdminOverlayPortal>}
   </section>;
 }

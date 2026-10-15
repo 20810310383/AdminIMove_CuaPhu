@@ -1,0 +1,118 @@
+/* iMOVE Admin v22 — every application dialog lives directly under <body>.
+   This file is imported after the legacy styles. Be deliberately specific
+   because older stylesheets include several !important modal rules. */
+body.imove-has-modal-v22 { overflow: hidden !important; }
+body > .imove-portal-overlay-v22,
+body > .imove-overlay-v21 {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483000 !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-height: none !important;
+  padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)) !important;
+  background: rgba(18, 24, 33, .58) !important;
+  backdrop-filter: blur(3px);
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  place-items: center !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  isolation: isolate;
+}
+/* Dialog stays centered while short; becomes internally scrollable when tall.
+   Margin auto works for both normal and very small viewport heights. */
+body > :is(.imove-portal-overlay-v22, .imove-overlay-v21) > :is(.modal, .v14-modal, .im-banner-dialog, .broadcast-detail, .enterprise-drawer, .dm-drawer) {
+  box-sizing: border-box !important;
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+  flex: 0 1 auto !important;
+  display: block;
+  min-width: 0 !important;
+  max-width: calc(100vw - 28px) !important;
+  width: min(740px, calc(100vw - 28px)) !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: calc(100vh - 28px) !important;
+  max-height: calc(100dvh - 28px) !important;
+  margin: auto !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  background: #fff !important;
+  border-radius: 18px !important;
+  box-shadow: 0 24px 90px rgba(0, 0, 0, .25) !important;
+  animation: imove-dialog-in-v22 .16s ease-out both;
+}
+@keyframes imove-dialog-in-v22 {
+  from { opacity: .65; translate: 0 7px; }
+  to { opacity: 1; translate: 0 0; }
+}
+body > :is(.imove-portal-overlay-v22,.imove-overlay-v21) > .im-banner-dialog { width: min(960px, calc(100vw - 28px)) !important; }
+body > :is(.imove-portal-overlay-v22,.imove-overlay-v21) > .v14-modal.wide { width: min(900px, calc(100vw - 28px)) !important; }
+body > :is(.imove-portal-overlay-v22,.imove-overlay-v21) > :is(.enterprise-drawer,.dm-drawer) {
+  width: min(1020px, calc(100vw - 28px)) !important;
+  max-height: calc(100dvh - 28px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #f8f9fb !important;
+}
+body > .imove-portal-overlay-v22 > .enterprise-drawer:not(.wide) { width: min(660px, calc(100vw - 28px)) !important; }
+body > .imove-portal-overlay-v22 > .enterprise-drawer.wide { width: min(900px, calc(100vw - 28px)) !important; }
+body > :is(.imove-portal-overlay-v22,.imove-overlay-v21) > .broadcast-detail.driver-exp-modal {
+  width: min(780px, calc(100vw - 28px)) !important;
+}
+/* Keep the form title and Save/Cancel actions reachable while scrolling. */
+body > :is(.imove-portal-overlay-v22,.imove-overlay-v21) > :is(.modal, .v14-modal, .im-banner-dialog, .broadcast-detail) > header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 5 !important;
+  background: #fff !important;
+}
+body > :is(.imove-portal-overlay-v22,.imove-overlay-v21) > :is(.modal,.v14-modal,.im-banner-dialog,.broadcast-detail) > footer,
+body > :is(.imove-portal-overlay-v22,.imove-overlay-v21) > .modal > form > footer,
+body > :is(.imove-portal-overlay-v22,.imove-overlay-v21) > .broadcast-detail > form > footer {
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 5 !important;
+  background: #fff !important;
+  border-top: 1px solid #e9edf1;
+}
+body > .imove-portal-overlay-v22 > .dm-drawer > .dm-drawer-body { min-height: 0; overflow: auto; }
+body > .imove-portal-overlay-v22 > .enterprise-drawer > header,
+body > .imove-portal-overlay-v22 > .dm-drawer > header {
+  position: sticky; top: 0; z-index: 5; background: #fff;
+}
+body > :is(.imove-portal-overlay-v22,.imove-overlay-v21) :is(input,textarea,select) {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+body > :is(.imove-portal-overlay-v22,.imove-overlay-v21) :is(.im-banner-editor,.v14-form-grid,.form-grid) {
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  body > :is(.imove-portal-overlay-v22,.imove-overlay-v21) { padding: 10px !important; }
+  body > :is(.imove-portal-overlay-v22,.imove-overlay-v21) > :is(.modal,.v14-modal,.im-banner-dialog,.broadcast-detail,.enterprise-drawer,.dm-drawer) {
+    width: 100% !important;
+    max-width: calc(100vw - 20px) !important;
+    max-height: calc(100dvh - 20px) !important;
+    border-radius: 14px !important;
+  }
+  body > .imove-overlay-v21 .im-banner-editor,
+  body > .imove-overlay-v21 .v14-form-grid,
+  body > .imove-portal-overlay-v22 .v14-form-grid { grid-template-columns: minmax(0,1fr) !important; }
+  body > .imove-portal-overlay-v22 .form-grid { grid-template-columns: minmax(0,1fr) !important; }
+  body > .imove-portal-overlay-v22 .form-grid .span-2 { grid-column: auto !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body > :is(.imove-portal-overlay-v22,.imove-overlay-v21) > :is(.modal,.v14-modal,.im-banner-dialog,.broadcast-detail,.enterprise-drawer,.dm-drawer) {
+    animation: none !important;
+  }
+}

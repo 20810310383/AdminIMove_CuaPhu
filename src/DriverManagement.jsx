@@ -1,3 +1,4 @@
+import AdminOverlayPortal from './AdminOverlayPortal.jsx';
 import React from 'react';
 import {
   AlertTriangle,
@@ -563,7 +564,7 @@ function DriverDrawer({
   ];
 
   return (
-    <div className="dm-drawer-backdrop" onMouseDown={onClose}>
+    <AdminOverlayPortal><div className="dm-drawer-backdrop" onMouseDown={onClose}>
       <aside
         className="dm-drawer"
         onMouseDown={event => event.stopPropagation()}
@@ -684,7 +685,7 @@ function DriverDrawer({
           </>
         )}
       </aside>
-    </div>
+    </div></AdminOverlayPortal>
   );
 }
 

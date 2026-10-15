@@ -1,3 +1,4 @@
+import AdminOverlayPortal from './AdminOverlayPortal.jsx';
 import React from 'react';
 import {
   History, RefreshCw, Search, UserRound, ShieldCheck, UserPlus, UserCog,
@@ -84,7 +85,7 @@ function summary(row){
 function DetailModal({row,onClose}){
   if(!row) return null;
   const [label,tone,Icon]=actionMeta(row.action);
-  return <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
+  return <AdminOverlayPortal><div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
     <section className="modal audit-detail-modal" role="dialog" aria-modal="true" onMouseDown={e=>e.stopPropagation()}>
       <header><div><h2>Chi tiết thao tác</h2><p>Thông tin được ghi tự động vào MongoDB audit_logs.</p></div><button type="button" className="icon-button" onClick={onClose}><X size={18}/></button></header>
       <div className="audit-detail-body">
@@ -105,7 +106,7 @@ function DetailModal({row,onClose}){
       </div>
       <footer><button type="button" className="button button-primary" onClick={onClose}>Đóng</button></footer>
     </section>
-  </div>;
+  </div></AdminOverlayPortal>;
 }
 
 export default function AuditLogPage(){
