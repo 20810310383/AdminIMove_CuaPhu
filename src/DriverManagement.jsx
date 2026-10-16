@@ -37,7 +37,7 @@ const STATUS_LABEL = {
   APPROVED: 'Đã duyệt',
   REJECTED: 'Cần bổ sung',
   PENDING: 'Chờ duyệt',
-  ONLINE: 'Đang online',
+  ONLINE: 'Online',
   OFFLINE: 'Offline',
   MISSING: 'Chưa có',
   UPLOADED: 'Đã tải lên',
@@ -57,6 +57,10 @@ function s(value) {
   return String(value || '').toUpperCase();
 }
 
+function operatingStatus(value) {
+  return ['ONLINE', 'BUSY'].includes(s(value)) ? 'ONLINE' : 'OFFLINE';
+}
+
 function label(value) {
   return STATUS_LABEL[s(value)] || value || '—';
 }
@@ -64,6 +68,7 @@ function label(value) {
 function badgeClass(value) {
   const key = s(value);
   if (key === 'APPROVED' || key === 'ONLINE') return 'success';
+  if (key === 'OFFLINE') return 'danger';
   if (key === 'REJECTED') return 'danger';
   if (key === 'SUBMITTED' || key === 'UNDER_REVIEW' || key === 'PENDING') {
     return 'warning';
@@ -193,7 +198,7 @@ function OverviewTab({ detail, onFile }) {
         <div className="dm-data-grid">
           <DataItem title="KYC" value={label(driver.kycStatus)} />
           <DataItem title="Tài khoản" value={label(driver.approvalStatus)} />
-          <DataItem title="Vận hành" value={label(driver.onlineStatus)} />
+          <DataItem title="Vận hành" value={label(operatingStatus(driver.onlineStatus))} />
           <DataItem title="Driver ID" value={String(driver._id || '')} mono />
         </div>
 
@@ -784,7 +789,7 @@ export default function DriverManagement() {
       if (['SUBMITTED', 'UNDER_REVIEW'].includes(kyc)) result.waiting += 1;
       if (kyc === 'APPROVED') result.approved += 1;
       if (kyc === 'REJECTED') result.rejected += 1;
-      if (s(row.onlineStatus) === 'ONLINE') result.online += 1;
+      if (operatingStatus(row.onlineStatus) === 'ONLINE') result.online += 1;
     });
 
     return result;
@@ -839,7 +844,7 @@ export default function DriverManagement() {
           row.user?.email || '',
           row.kycStatus || '',
           row.approvalStatus || '',
-          row.onlineStatus || '',
+          operatingStatus(row.onlineStatus),
           `${p.complete}/${p.total}`,
           row.updatedAt || '',
         ];
@@ -979,7 +984,7 @@ export default function DriverManagement() {
                     <td><StatusBadge value={row.kycStatus} /></td>
                     <td><DocProgress row={row} /></td>
                     <td><StatusBadge value={row.approvalStatus} /></td>
-                    <td><StatusBadge value={row.onlineStatus} /></td>
+                    <td><StatusBadge value={operatingStatus(row.onlineStatus)} /></td>
                     <td className="dm-date">
                       {row.updatedAt
                         ? new Date(row.updatedAt).toLocaleString('vi-VN')
