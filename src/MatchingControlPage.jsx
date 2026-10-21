@@ -65,7 +65,11 @@ export default function MatchingControlPage({access}){
     finally{setLoading(false)}
   },[]);
 
-  React.useEffect(()=>{load()},[load]);
+  React.useEffect(()=>{
+    load();
+    const timer=setInterval(load,15000);
+    return()=>clearInterval(timer);
+  },[load]);
 
   const loadPreview=React.useCallback(async(id)=>{
     if(!id){setPreview(null);return}
@@ -171,7 +175,7 @@ export default function MatchingControlPage({access}){
       <Box>
         <h2 style={{margin:'0 0 5px',fontSize:19}}>Hàng đợi & phát đơn</h2><p style={{fontSize:12,color:'#858a93',margin:'0 0 12px'}}>Chọn chuyến đang tìm hoặc NO_DRIVER để xem tài xế gần nhất và phát lại.</p>
         <select value={selectedBookingId} onChange={e=>setSelectedBookingId(e.target.value)} style={{width:'100%',padding:11,border:'1px solid #dfe3e8',borderRadius:11,fontWeight:700}}><option value="">Chọn chuyến...</option>{queue.map(b=><option key={b.id} value={b.id}>{b.code} · {b.status} · {b.pickup||'Điểm đón'}</option>)}</select>
-        {selectedBooking&&<div style={{background:'#f7f8fa',borderRadius:13,padding:12,marginTop:10,fontSize:13}}><b>{selectedBooking.code}</b><span style={{marginLeft:8,fontSize:11,fontWeight:900,color:selectedBooking.status==='NO_DRIVER'?'#c62828':'#137a43'}}>{selectedBooking.status}</span><div style={{marginTop:4}}>● {selectedBooking.pickup||'—'}</div><div>→ {selectedBooking.destination||'—'}</div><div style={{marginTop:5,fontWeight:800}}>{money(selectedBooking.customerTotal)}</div></div>}
+        {selectedBooking&&<div style={{background:'#f7f8fa',borderRadius:13,padding:12,marginTop:10,fontSize:13}}><b>{selectedBooking.code}</b><span style={{marginLeft:8,fontSize:11,fontWeight:900,color:selectedBooking.status==='NO_DRIVER'?'#c62828':'#137a43'}}>{selectedBooking.status}</span><div style={{marginTop:4}}>● {selectedBooking.pickup||'—'}</div><div>→ {selectedBooking.destination||'—'}</div><div style={{marginTop:5,fontWeight:800}}>{money(selectedBooking.customerTotal)}</div>{selectedBooking.dispatch?.status&&<div style={{marginTop:6,fontSize:11,fontWeight:800,color:'#6d737d'}}>V6.9 Dispatch · Round {selectedBooking.dispatch?.currentRound||0} · {selectedBooking.dispatch.status}</div>}</div>}
         {selectedBookingId&&<div style={{marginTop:12}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:7}}><b>Tài xế gần điểm đón</b><span style={{fontSize:11,color:'#8b9098'}}>{candidates.length} ứng viên</span></div>
           <div style={{display:'grid',gap:7,maxHeight:260,overflowY:'auto'}}>
