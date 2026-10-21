@@ -38,18 +38,20 @@ export default function DriverPointTopupsPage(){
   const [driverQuery,setDriverQuery]=React.useState('');
   const [adjustBusy,setAdjustBusy]=React.useState(false);
   const [adjustForm,setAdjustForm]=React.useState({driverId:'',direction:'CREDIT',points:'',reason:'',reference:''});
+  const latestLoadRef=React.useRef(0);
 
-  const load=React.useCallback(async()=>{
+  const load=React.useCallback(async({force=false}={})=>{
+    const requestId=++latestLoadRef.current;
     setLoading(true);setError('');
     try{
       const params=new URLSearchParams();
       if(status&&status!=='ALL')params.set('status',status);
       if(keyword.trim())params.set('q',keyword.trim());
       const q=params.toString()?`?${params.toString()}`:'';
-      const data=await coreApiRequest(`/api/v72/admin/driver-experience/point-topups${q}`);
-      setRows(Array.isArray(data?.topups)?data.topups:[]);
-    }catch(e){setError(e.message||String(e))}
-    finally{setLoading(false)}
+      const data=await coreApiRequest(`/api/v72/admin/driver-experience/point-topups${q}`,{dedupe:!force});
+      if(requestId===latestLoadRef.current)setRows(Array.isArray(data?.topups)?data.topups:[]);
+    }catch(e){if(requestId===latestLoadRef.current)setError(e.message||String(e))}
+    finally{if(requestId===latestLoadRef.current)setLoading(false)}
   },[status,keyword]);
 
   React.useEffect(()=>{
@@ -63,7 +65,7 @@ export default function DriverPointTopupsPage(){
     setBusy(row.id);setError('');
     try{
       await coreApiRequest(`/api/v72/admin/driver-experience/point-topups/${row.id}/approve`,{method:'POST',body:'{}'});
-      await load();
+      await load({force:true});
     }catch(e){setError(e.message||String(e))}
     finally{setBusy('')}
   }
@@ -74,7 +76,7 @@ export default function DriverPointTopupsPage(){
     setBusy(row.id);setError('');
     try{
       await coreApiRequest(`/api/v72/admin/driver-experience/point-topups/${row.id}/reject`,{method:'POST',body:JSON.stringify({reason})});
-      await load();
+      await load({force:true});
     }catch(e){setError(e.message||String(e))}
     finally{setBusy('')}
   }
@@ -143,7 +145,7 @@ export default function DriverPointTopupsPage(){
         <select value={status} onChange={e=>setStatus(e.target.value)}>
           <option value="PENDING_REVIEW">Chờ duyệt</option><option value="APPROVED">Đã duyệt</option><option value="AMOUNT_MISMATCH">Sai số tiền</option><option value="REJECTED">Đã từ chối</option><option value="ALL">Tất cả</option>
         </select>
-        <button className="button" onClick={load}><RefreshCw size={15}/>Làm mới</button>
+        <button className="button" disabled={loading} onClick={()=>load({force:true})}><RefreshCw size={15}/>{loading?'Đang tải...':'Làm mới'}</button>
       </div>
     </header>
 

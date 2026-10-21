@@ -1250,7 +1250,7 @@ function AdminApp(){
       try{await syncDriversFromServer()}catch(error){console.warn('Không thể làm mới trạng thái tài xế:',error.message)}
       finally{busy=false}
     };
-    const timer=window.setInterval(refresh,20000);
+    const timer=window.setInterval(refresh,60000);
     const onVisibility=()=>{if(document.visibilityState==='visible')refresh()};
     document.addEventListener('visibilitychange',onVisibility);
     return()=>{window.clearInterval(timer);document.removeEventListener('visibilitychange',onVisibility)};

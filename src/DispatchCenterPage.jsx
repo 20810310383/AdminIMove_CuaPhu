@@ -9,7 +9,7 @@ const primary={...btn,background:'#d71920',color:'#fff',borderColor:'#d71920'};
 export default function DispatchCenterPage(){
   const [cfg,setCfg]=React.useState(null);const [live,setLive]=React.useState([]);const [push,setPush]=React.useState({stats:{},rows:[]});const [cooldowns,setCooldowns]=React.useState([]);const [selected,setSelected]=React.useState(null);const [detail,setDetail]=React.useState(null);const [error,setError]=React.useState('');const [message,setMessage]=React.useState('');
   const load=React.useCallback(async()=>{setError('');try{const [c,l,p,cd]=await Promise.all([coreApiRequest('/api/v69/admin/dispatch/config'),coreApiRequest('/api/v69/admin/dispatch/live'),coreApiRequest('/api/v69/admin/dispatch/push?limit=100'),coreApiRequest('/api/v69/admin/dispatch/cooldowns')]);setCfg(c);setLive(Array.isArray(l)?l:[]);setPush(p||{stats:{},rows:[]});setCooldowns(Array.isArray(cd)?cd:[]);}catch(e){setError(e.message)}},[]);
-  React.useEffect(()=>{load();const t=setInterval(load,5000);return()=>clearInterval(t)},[load]);
+  React.useEffect(()=>{load();const t=setInterval(load,30000);return()=>clearInterval(t)},[load]);
   async function open(id){setSelected(id);try{setDetail(await coreApiRequest(`/api/v69/admin/dispatch/bookings/${id}`))}catch(e){setError(e.message)}}
   async function act(path,body){setError('');setMessage('');try{await coreApiRequest(path,{method:'POST',body:JSON.stringify(body||{})});setMessage('Đã thực hiện.');await load();if(selected)await open(selected);}catch(e){setError(e.message)}}
   async function save(){try{await coreApiRequest('/api/v69/admin/dispatch/config',{method:'PUT',body:JSON.stringify(cfg)});setMessage('Đã lưu cấu hình điều phối.');await load()}catch(e){setError(e.message)}}

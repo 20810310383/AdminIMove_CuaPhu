@@ -15,19 +15,24 @@ export default function FundTransferSettingsPanel(){
   const [busy,setBusy]=React.useState('');
   const [error,setError]=React.useState('');
   const [saved,setSaved]=React.useState('');
+  const [loading,setLoading]=React.useState(true);
+  const latestLoadRef=React.useRef(0);
 
-  const load=React.useCallback(async()=>{
+  const load=React.useCallback(async({force=false}={})=>{
+    const requestId=++latestLoadRef.current;
+    setLoading(true);
     setError('');
     try{
       const [cfg,rows]=await Promise.all([
-        coreApiRequest('/api/v171/admin/funds/config'),
-        coreApiRequest(`/api/v171/admin/funds/requests?status=ALL&actorType=${actorType}`),
+        coreApiRequest('/api/v171/admin/funds/config',{dedupe:!force}),
+        coreApiRequest(`/api/v171/admin/funds/requests?status=ALL&actorType=${actorType}`,{dedupe:!force}),
       ]);
-      setBank({...bank,...(cfg?.bank||{})});
+      if(requestId!==latestLoadRef.current)return;
+      setBank(v=>({...v,...(cfg?.bank||{})}));
       setMinimumAmountVnd(Number(cfg?.minimumAmountVnd||50000));
       setRequests(Array.isArray(rows?.requests)?rows.requests:[]);
-    }catch(e){setError(e.message||String(e))}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    }catch(e){if(requestId===latestLoadRef.current)setError(e.message||String(e))}
+    finally{if(requestId===latestLoadRef.current)setLoading(false)}
   },[actorType]);
 
   React.useEffect(()=>{load()},[load]);
@@ -66,7 +71,7 @@ export default function FundTransferSettingsPanel(){
         body=JSON.stringify({reason});
       }
       await coreApiRequest(`/api/v171/admin/funds/requests/${row.id}/${action}`,{method:'POST',body});
-      await load();
+      await load({force:true});
     }catch(e){setError(e.message||String(e))}
     finally{setBusy('')}
   }
@@ -89,7 +94,7 @@ export default function FundTransferSettingsPanel(){
   return <section className="fund-transfer-console">
     <header className="fund-transfer-head">
       <div><span className="v14-eyebrow">QR FUNDING · DRIVER & MERCHANT</span><h2>QR nhận quỹ & duyệt biên lai</h2><p>Admin cấu hình một tài khoản/QR nhận tiền. App tự sinh nội dung chuyển khoản riêng theo Driver/Merchant để dễ đối soát.</p></div>
-      <button className="button" onClick={load}><RefreshCw size={14}/>Làm mới</button>
+      <button className="button" disabled={loading} onClick={()=>load({force:true})}><RefreshCw size={14}/>{loading?'Đang tải...':'Làm mới'}</button>
     </header>
     {error&&<div className="v73-alert">{error}</div>}
     {saved&&<div className="broadcast-alert success">{saved}</div>}
@@ -125,7 +130,7 @@ export default function FundTransferSettingsPanel(){
           <td>{date(row.createdAt)}</td>
           <td>{['PENDING_REVIEW','WAITING_TRANSFER'].includes(row.status)?<div className="page-actions"><button className="button button-small" disabled={busy===row.id} onClick={()=>act(row,'reject')}><XCircle size={13}/>Từ chối</button><button className="button button-small button-primary" disabled={busy===row.id||!row.receiptUploaded} onClick={()=>act(row,'approve')}><CheckCircle2 size={13}/>Duyệt</button></div>:'—'}</td>
         </tr>)}
-      </tbody></table>{!requests.length&&<div className="v14-empty">Chưa có yêu cầu nạp quỹ.</div>}</div>
+      </tbody></table>{loading&&<div className="v14-empty">Đang tải yêu cầu nạp quỹ...</div>}{!loading&&!requests.length&&<div className="v14-empty">Chưa có yêu cầu nạp quỹ.</div>}</div>
     </section>
   </section>;
 }
