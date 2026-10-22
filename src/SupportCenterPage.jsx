@@ -95,7 +95,7 @@ export default function SupportCenterPage({ access }) {
       if (document.visibilityState !== 'visible') return;
       loadList({ silent: true });
       if (selectedId) loadChat(selectedId, { silent: true });
-    }, 30000);
+    }, 5000);
     return () => window.clearInterval(timer);
   }, [loadList, loadChat, selectedId]);
   React.useEffect(() => { bottomRef.current?.scrollIntoView({ block: 'end' }); }, [messages]);

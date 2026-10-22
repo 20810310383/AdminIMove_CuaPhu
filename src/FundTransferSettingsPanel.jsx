@@ -12,28 +12,24 @@ export default function FundTransferSettingsPanel(){
   const [minimumAmountVnd,setMinimumAmountVnd]=React.useState(50000);
   const [requests,setRequests]=React.useState([]);
   const [actorType,setActorType]=React.useState('ALL');
+  const [page,setPage]=React.useState(1),[hasNext,setHasNext]=React.useState(false),[hasPrevious,setHasPrevious]=React.useState(false);
   const [busy,setBusy]=React.useState('');
   const [error,setError]=React.useState('');
   const [saved,setSaved]=React.useState('');
-  const [loading,setLoading]=React.useState(true);
-  const latestLoadRef=React.useRef(0);
 
-  const load=React.useCallback(async({force=false}={})=>{
-    const requestId=++latestLoadRef.current;
-    setLoading(true);
+  const load=React.useCallback(async()=>{
     setError('');
     try{
       const [cfg,rows]=await Promise.all([
-        coreApiRequest('/api/v171/admin/funds/config',{dedupe:!force}),
-        coreApiRequest(`/api/v171/admin/funds/requests?status=ALL&actorType=${actorType}`,{dedupe:!force}),
+        coreApiRequest('/api/v171/admin/funds/config'),
+        coreApiRequest(`/api/v171/admin/funds/requests?status=ALL&actorType=${actorType}&page=${page}&limit=50`),
       ]);
-      if(requestId!==latestLoadRef.current)return;
-      setBank(v=>({...v,...(cfg?.bank||{})}));
+      setBank({...bank,...(cfg?.bank||{})});
       setMinimumAmountVnd(Number(cfg?.minimumAmountVnd||50000));
-      setRequests(Array.isArray(rows?.requests)?rows.requests:[]);
-    }catch(e){if(requestId===latestLoadRef.current)setError(e.message||String(e))}
-    finally{if(requestId===latestLoadRef.current)setLoading(false)}
-  },[actorType]);
+      setRequests(Array.isArray(rows?.requests)?rows.requests:[]);setHasNext(Boolean(rows?.hasNext));setHasPrevious(Boolean(rows?.hasPrevious));
+    }catch(e){setError(e.message||String(e))}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[actorType,page]);
 
   React.useEffect(()=>{load()},[load]);
 
@@ -71,7 +67,7 @@ export default function FundTransferSettingsPanel(){
         body=JSON.stringify({reason});
       }
       await coreApiRequest(`/api/v171/admin/funds/requests/${row.id}/${action}`,{method:'POST',body});
-      await load({force:true});
+      await load();
     }catch(e){setError(e.message||String(e))}
     finally{setBusy('')}
   }
@@ -94,7 +90,7 @@ export default function FundTransferSettingsPanel(){
   return <section className="fund-transfer-console">
     <header className="fund-transfer-head">
       <div><span className="v14-eyebrow">QR FUNDING · DRIVER & MERCHANT</span><h2>QR nhận quỹ & duyệt biên lai</h2><p>Admin cấu hình một tài khoản/QR nhận tiền. App tự sinh nội dung chuyển khoản riêng theo Driver/Merchant để dễ đối soát.</p></div>
-      <button className="button" disabled={loading} onClick={()=>load({force:true})}><RefreshCw size={14}/>{loading?'Đang tải...':'Làm mới'}</button>
+      <button className="button" onClick={load}><RefreshCw size={14}/>Làm mới</button>
     </header>
     {error&&<div className="v73-alert">{error}</div>}
     {saved&&<div className="broadcast-alert success">{saved}</div>}
@@ -119,7 +115,7 @@ export default function FundTransferSettingsPanel(){
     </div>
 
     <section className="card fund-review-card">
-      <header><div><h3>Yêu cầu nạp quỹ Driver & Merchant</h3><p>Biên lai do app gửi lên để Admin kiểm tra trước khi duyệt.</p></div><select value={actorType} onChange={e=>setActorType(e.target.value)}><option value="ALL">Tất cả</option><option value="DRIVER">Driver</option><option value="MERCHANT">Merchant</option></select></header>
+      <header><div><h3>Yêu cầu nạp quỹ Driver & Merchant</h3><p>Biên lai do app gửi lên để Admin kiểm tra trước khi duyệt.</p></div><select value={actorType} onChange={e=>{setPage(1);setActorType(e.target.value)}}><option value="ALL">Tất cả</option><option value="DRIVER">Driver</option><option value="MERCHANT">Merchant</option></select></header>
       <div className="v14-table-wrap"><table><thead><tr><th>Đối tượng</th><th>Nội dung CK</th><th>Số tiền</th><th>Biên lai</th><th>Trạng thái</th><th>Thời gian</th><th>Thao tác</th></tr></thead><tbody>
         {requests.map(row=><tr key={row.id}>
           <td><b>{row.actorType==='MERCHANT'?'Merchant':'Driver'} · {row.actorSnapshot?.fullName||'—'}</b><small className="v14-subline">{row.actorSnapshot?.phone||''}</small></td>
@@ -130,7 +126,7 @@ export default function FundTransferSettingsPanel(){
           <td>{date(row.createdAt)}</td>
           <td>{['PENDING_REVIEW','WAITING_TRANSFER'].includes(row.status)?<div className="page-actions"><button className="button button-small" disabled={busy===row.id} onClick={()=>act(row,'reject')}><XCircle size={13}/>Từ chối</button><button className="button button-small button-primary" disabled={busy===row.id||!row.receiptUploaded} onClick={()=>act(row,'approve')}><CheckCircle2 size={13}/>Duyệt</button></div>:'—'}</td>
         </tr>)}
-      </tbody></table>{loading&&<div className="v14-empty">Đang tải yêu cầu nạp quỹ...</div>}{!loading&&!requests.length&&<div className="v14-empty">Chưa có yêu cầu nạp quỹ.</div>}</div>
+      </tbody></table>{!requests.length&&<div className="v14-empty">Chưa có yêu cầu nạp quỹ.</div>}<nav aria-label="Phân trang yêu cầu nạp quỹ" style={{display:'flex',justifyContent:'flex-end',alignItems:'center',gap:12,marginTop:12}}><button className="button" type="button" disabled={!hasPrevious} onClick={()=>setPage(p=>Math.max(1,p-1))}>Trang trước</button><span>Trang {page}</span><button className="button" type="button" disabled={!hasNext} onClick={()=>setPage(p=>p+1)}>Trang sau</button></nav></div>
     </section>
   </section>;
 }

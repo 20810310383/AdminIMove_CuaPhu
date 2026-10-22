@@ -18,7 +18,7 @@ export default function BroadcastCenterPage(){
   const [form,setForm]=React.useState({title:'',body:'',level:4,audience:'BOTH',specificType:'BOTH',identifiers:'',expiryHours:168});
   const [rows,setRows]=React.useState([]),[selected,setSelected]=React.useState(null),[detail,setDetail]=React.useState(null),[loading,setLoading]=React.useState(true),[sending,setSending]=React.useState(false),[error,setError]=React.useState(''),[success,setSuccess]=React.useState('');
   const load=React.useCallback(async()=>{setError('');try{const d=await coreApiRequest('/api/v71/admin/broadcasts?limit=60');setRows(Array.isArray(d)?d:[])}catch(e){setError(e.message)}finally{setLoading(false)}},[]);
-  React.useEffect(()=>{load();const t=window.setInterval(load,30000);return()=>window.clearInterval(t)},[load]);
+  React.useEffect(()=>{load();const t=window.setInterval(load,10000);return()=>window.clearInterval(t)},[load]);
   async function openDetail(id){setSelected(id);try{setDetail(await coreApiRequest(`/api/v71/admin/broadcasts/${id}`))}catch(e){setError(e.message)}}
   async function removeBroadcast(id,title=''){
     if(!id)return;

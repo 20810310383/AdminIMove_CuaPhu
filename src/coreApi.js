@@ -2,8 +2,6 @@ import { CORE_BACKEND_URL, coreUrl, fetchWithTimeout } from './apiRuntime.js';
 
 const ACCESS_KEY = 'imove_core_admin_access_token';
 const USER_KEY = 'imove_core_admin_user';
-const CORE_GET_TIMEOUT_MS = 20_000;
-const inFlightGetRequests = new Map();
 
 export function hasCoreAdminSession() {
   return Boolean(localStorage.getItem(ACCESS_KEY));
@@ -155,23 +153,40 @@ export function coreAdminLogout() {
   clearCoreAdminSession();
 }
 
-async function performCoreApiRequest(path, options, headers, timeoutMs) {
-  const { timeoutMs: _timeoutMs, dedupe: _dedupe, ...fetchOptions } = options;
+export async function coreApiRequest(path, options = {}) {
+  const token = localStorage.getItem(ACCESS_KEY);
+
+  if (!token) {
+    throw new Error('Chưa đăng nhập Core Admin.');
+  }
+
+  const headers = {
+    ...(options.headers || {}),
+    Authorization: `Bearer ${token}`,
+  };
+
+  if (options.body && !(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  const method = String(options.method || 'GET').toUpperCase();
+  const defaultTimeout = method === 'GET' ? 60000 : 35000;
+  const routeTimeout = String(path).startsWith('/api/v14/admin/analytics')
+    ? 120000
+    : defaultTimeout;
+
   let response;
   try {
     response = await fetchWithTimeout(
       coreUrl(path),
       {
-        ...fetchOptions,
+        ...options,
         headers,
         cache: 'no-store',
       },
-      timeoutMs
+      Number(options.timeoutMs || routeTimeout)
     );
   } catch (error) {
-    // Let callers distinguish an intentional cancellation (filter/page change)
-    // from a real Core Backend timeout.
-    if (fetchOptions.signal?.aborted) throw error;
     if (error?.name === 'AbortError') {
       throw new Error(`Core Backend phản hồi quá thời gian khi gọi ${path}.`);
     }
@@ -193,49 +208,6 @@ async function performCoreApiRequest(path, options, headers, timeoutMs) {
   }
 
   return payload;
-}
-
-export async function coreApiRequest(path, options = {}) {
-  const token = localStorage.getItem(ACCESS_KEY);
-
-  if (!token) {
-    throw new Error('Chưa đăng nhập Core Admin.');
-  }
-
-  const headers = {
-    ...(options.headers || {}),
-    Authorization: `Bearer ${token}`,
-  };
-
-  if (options.body && !(options.body instanceof FormData)) {
-    headers['Content-Type'] = 'application/json';
-  }
-
-  const method = String(options.method || 'GET').toUpperCase();
-  const defaultTimeout = method === 'GET' ? CORE_GET_TIMEOUT_MS : 35000;
-  const routeTimeout = String(path).startsWith('/api/v14/admin/analytics')
-    ? 120000
-    : defaultTimeout;
-  const timeoutMs = Number(options.timeoutMs || routeTimeout);
-
-  // React StrictMode and independent dashboard widgets can ask for the exact
-  // same read concurrently. One shared request prevents duplicate MongoDB work.
-  const canShareGet = method === 'GET' && !options.signal && options.dedupe !== false;
-  if (!canShareGet) return performCoreApiRequest(path, options, headers, timeoutMs);
-
-  const requestKey = `${coreUrl(path)}\n${token}`;
-  const current = inFlightGetRequests.get(requestKey);
-  if (current) return current;
-
-  const request = performCoreApiRequest(path, options, headers, timeoutMs);
-  inFlightGetRequests.set(requestKey, request);
-  try {
-    return await request;
-  } finally {
-    if (inFlightGetRequests.get(requestKey) === request) {
-      inFlightGetRequests.delete(requestKey);
-    }
-  }
 }
 
 export async function openCorePrivateFile(fileId) {

@@ -131,7 +131,7 @@ export default function ProductionHealthPage({ access }) {
     load();
     const timer = setInterval(() => {
       if (document.visibilityState === 'visible') load();
-    }, 30000);
+    }, 15000);
     return () => clearInterval(timer);
   }, [load]);
 
