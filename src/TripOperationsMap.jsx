@@ -1,184 +1,132 @@
 import React from 'react';
-import { Crosshair, MapPin } from 'lucide-react';
+import { Crosshair, MapPin, Route } from 'lucide-react';
 import { getTrackAsiaGL, getTrackAsiaStyleUrl, trackAsiaConfig, usesTrackAsiaPublicTestKey } from './trackAsiaConfig.js';
+import { extractTripEndpoints, parseTrackAsiaRoute, trackAsiaRouteUrl } from './tripMapGeometry.js';
 
-function validPoint(lat, lon) {
-  return Number.isFinite(lat) && Number.isFinite(lon)
-    && Math.abs(lat) <= 85.0511 && Math.abs(lon) <= 180
-    && !(lat === 0 && lon === 0);
-}
+const ROUTE_SOURCE = 'imove-trip-route';
+const ROUTE_LINE = 'imove-trip-route-line';
+const ROUTE_HALO = 'imove-trip-route-halo';
 
-function pointFromValue(value) {
-  if (!value) return null;
-  if (typeof value === 'object') {
-    const directLat = Number(value.latitude ?? value.lat);
-    const directLon = Number(value.longitude ?? value.lng ?? value.lon);
-    if (validPoint(directLat, directLon)) return { lat: directLat, lon: directLon };
-
-    const candidates = [value.coordinates, value.location?.coordinates, value.geo?.coordinates, value.geometry?.coordinates];
-    for (const coords of candidates) {
-      if (!Array.isArray(coords) || coords.length < 2) continue;
-      const lon = Number(coords[0]);
-      const lat = Number(coords[1]);
-      if (validPoint(lat, lon)) return { lat, lon };
-    }
-
-    for (const key of ['address', 'addressText', 'name', 'label']) {
-      if (typeof value[key] === 'string') {
-        const parsed = pointFromValue(value[key]);
-        if (parsed) return parsed;
-      }
-    }
-    return null;
-  }
-
-  if (typeof value === 'string') {
-    const match = value.match(/(-?\d{1,2}(?:\.\d+)?)\s*[,;]\s*(-?\d{1,3}(?:\.\d+)?)/);
-    if (!match) return null;
-    const lat = Number(match[1]);
-    const lon = Number(match[2]);
-    return validPoint(lat, lon) ? { lat, lon } : null;
-  }
-  return null;
-}
-
-function tripPoint(trip) {
-  const directLat = Number(trip?.latitude ?? trip?.pickupLatitude ?? trip?.pickupLat);
-  const directLon = Number(trip?.longitude ?? trip?.pickupLongitude ?? trip?.pickupLng ?? trip?.pickupLon);
-  if (validPoint(directLat, directLon)) return { lat: directLat, lon: directLon };
-
-  const sources = [
-    trip?._pickupRaw,
-    trip?.pickupLocation,
-    trip?.pickup,
-    trip?.origin,
-    trip?.startLocation,
-    trip?.pickupPoint,
-    trip?.pickupCoordinates,
-    trip?.pickupCoords,
-    trip?._destinationRaw,
-    trip?.destinationLocation,
-    trip?.destination,
-  ];
-  for (const source of sources) {
-    const point = pointFromValue(source);
-    if (point) return point;
-  }
-  return null;
-}
-
-function fitMapToPoints(map, points, { animate = true } = {}) {
-  if (!map) return;
-  if (!points.length) {
-    map.easeTo({
-      center: [trackAsiaConfig.defaultCenter.lon, trackAsiaConfig.defaultCenter.lat],
-      zoom: 12,
-      duration: animate ? 320 : 0,
-    });
+function fitMapToPoints(map, coords, animate = true) {
+  if (!map || !coords.length) return;
+  if (coords.length === 1) {
+    map.easeTo({ center: coords[0], zoom: 14, duration: animate ? 450 : 0 });
     return;
   }
-  if (points.length === 1) {
-    map.easeTo({
-      center: [Number(points[0].longitude), Number(points[0].latitude)],
-      zoom: 14,
-      duration: animate ? 320 : 0,
-    });
-    return;
-  }
-
-  const lons = points.map((point) => Number(point.longitude));
-  const lats = points.map((point) => Number(point.latitude));
-  map.fitBounds(
-    [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
-    { padding: 54, maxZoom: 15, duration: animate ? 380 : 0 },
-  );
+  const lons = coords.map(([lon]) => lon);
+  const lats = coords.map(([,lat]) => lat);
+  map.fitBounds([[Math.min(...lons),Math.min(...lats)],[Math.max(...lons),Math.max(...lats)]], {
+    padding: { top: 64, bottom: 64, left: 64, right: 64 },
+    maxZoom: 15,
+    duration: animate ? 450 : 0,
+  });
 }
 
-function makeTripMarker(trip) {
-  const code = String(trip.id || trip.bookingCode || '').trim() || 'Chuyến xe';
-  const element = document.createElement('button');
-  element.type = 'button';
-  element.className = 'trackasia-trip-marker';
-  element.title = `${code}${trip.pickup ? ` · ${trip.pickup}` : ''}`;
-  element.setAttribute('aria-label', `Chuyến ${code}`);
+function createMarkerElement(kind, label) {
+  const el = document.createElement('div');
+  el.className = `imove-trip-endpoint-marker ${kind}`;
+  el.setAttribute('aria-label', label);
+  const bubble = document.createElement('span');
+  bubble.className = 'imove-trip-endpoint-dot';
+  bubble.textContent = kind === 'pickup' ? 'A' : 'B';
+  const text = document.createElement('span');
+  text.className = 'imove-trip-endpoint-label';
+  text.textContent = label;
+  el.append(bubble, text);
+  return el;
+}
 
-  const dot = document.createElement('span');
-  dot.className = 'trackasia-pin-dot';
-  dot.setAttribute('aria-hidden', 'true');
-
-  const label = document.createElement('span');
-  label.className = 'trackasia-pin-label';
-  label.textContent = code;
-
-  element.append(dot, label);
-  return element;
+function drawRoute(map, geometry) {
+  if (!map || !map.isStyleLoaded?.()) return;
+  const data = { type:'Feature', properties:{}, geometry };
+  if (map.getSource(ROUTE_SOURCE)) {
+    map.getSource(ROUTE_SOURCE).setData(data);
+    return;
+  }
+  map.addSource(ROUTE_SOURCE, { type:'geojson', data });
+  map.addLayer({
+    id:ROUTE_HALO, type:'line', source:ROUTE_SOURCE,
+    layout:{ 'line-cap':'round', 'line-join':'round' },
+    paint:{ 'line-color':'#ffffff', 'line-width':10, 'line-opacity':.96 },
+  });
+  map.addLayer({
+    id:ROUTE_LINE, type:'line', source:ROUTE_SOURCE,
+    layout:{ 'line-cap':'round', 'line-join':'round' },
+    paint:{ 'line-color':'#ec2138', 'line-width':6, 'line-opacity':.95 },
+  });
 }
 
 export default function TripOperationsMap({ trips = [] }) {
+  const trip = trips[0] || null;
   const hostRef = React.useRef(null);
   const mapRef = React.useRef(null);
   const markersRef = React.useRef([]);
-  const fittedRef = React.useRef(false);
   const [mapReady, setMapReady] = React.useState(false);
   const [mapError, setMapError] = React.useState('');
+  const [routeError, setRouteError] = React.useState('');
+  const [routeLoading, setRouteLoading] = React.useState(false);
+  const [routeData, setRouteData] = React.useState(null);
 
-  const points = React.useMemo(() => trips.map((trip) => {
-    const point = tripPoint(trip);
-    return point ? { ...trip, latitude: point.lat, longitude: point.lon } : null;
-  }).filter(Boolean), [trips]);
+  const endpoints = React.useMemo(() => {
+    if (!trip) return { pickup: null, destination: null };
+    return extractTripEndpoints(trip);
+  }, [trip]);
+  const availablePoints = React.useMemo(() =>
+    [endpoints.pickup, endpoints.destination].filter(Boolean).map((p) => [p.lon, p.lat]),
+  [endpoints]);
+  const canRoute = Boolean(endpoints.pickup && endpoints.destination);
+  const profile = trip?.serviceCode || trip?.serviceType || trip?.vehicleType || 'CAR';
+  const routeKey = `${endpoints.pickup?.lat || ''},${endpoints.pickup?.lon || ''}|${endpoints.destination?.lat || ''},${endpoints.destination?.lon || ''}|${profile}`;
 
   React.useEffect(() => {
     const host = hostRef.current;
-    if (!host) return undefined;
-
     const trackasiagl = getTrackAsiaGL();
+    if (!host) return undefined;
     if (!trackasiagl) {
-      setMapError('Không tải được TrackAsia GL JS. Kiểm tra kết nối Internet hoặc CDN TrackAsia.');
+      setMapError('Không tải được thư viện TrackAsia GL JS. Kiểm tra CDN và kết nối mạng.');
       return undefined;
     }
-
     let map;
+    let stillMounted = true;
     try {
       map = new trackasiagl.Map({
         container: host,
         style: getTrackAsiaStyleUrl(),
         center: [trackAsiaConfig.defaultCenter.lon, trackAsiaConfig.defaultCenter.lat],
-        zoom: 12,
+        zoom: 11,
         minZoom: trackAsiaConfig.minZoom,
         maxZoom: trackAsiaConfig.maxZoom,
         attributionControl: true,
-        localIdeographFontFamily: "'Inter', 'Arial Unicode MS', sans-serif",
       });
       mapRef.current = map;
-
-      if (trackasiagl.NavigationControl) {
-        map.addControl(new trackasiagl.NavigationControl({ showCompass: false }), 'top-left');
-      }
-      if (trackasiagl.FullscreenControl) {
-        map.addControl(new trackasiagl.FullscreenControl(), 'top-right');
-      }
-
+      if (trackasiagl.NavigationControl) map.addControl(new trackasiagl.NavigationControl({ showCompass:false }), 'top-left');
+      if (trackasiagl.FullscreenControl) map.addControl(new trackasiagl.FullscreenControl(), 'top-right');
       map.scrollZoom?.enable?.();
       map.dragPan?.enable?.();
-      map.doubleClickZoom?.enable?.();
       map.touchZoomRotate?.enable?.();
-
-      map.once('load', () => {
-        setMapError('');
+      map.doubleClickZoom?.enable?.();
+      map.on('load', () => {
+        if (!stillMounted) return;
+        map.resize();
         setMapReady(true);
-        map.resize?.();
+        setMapError('');
+      });
+      map.on('error', (event) => {
+        const message = String(event?.error?.message || '');
+        if (stillMounted && /401|403|unauthorized|forbidden|style|failed to fetch/i.test(message)) {
+          setMapError('TrackAsia không tải được lớp bản đồ. Hãy kiểm tra VITE_TRACKASIA_API_KEY, mạng và quyền sử dụng key.');
+        }
       });
     } catch (error) {
-      setMapError(`Không khởi tạo được bản đồ TrackAsia: ${error?.message || 'Lỗi không xác định'}`);
+      setMapError(`Không khởi tạo được bản đồ: ${error?.message || 'Lỗi không xác định'}`);
       return undefined;
     }
-
-    const observer = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(() => map?.resize?.())
-      : null;
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => map.resize());
     observer?.observe(host);
-
+    const raf = requestAnimationFrame(() => map.resize());
     return () => {
+      stillMounted = false;
+      cancelAnimationFrame(raf);
       observer?.disconnect();
       markersRef.current.forEach((marker) => marker.remove?.());
       markersRef.current = [];
@@ -191,65 +139,105 @@ export default function TripOperationsMap({ trips = [] }) {
     const map = mapRef.current;
     const trackasiagl = getTrackAsiaGL();
     if (!map || !trackasiagl || !mapReady) return;
-
     markersRef.current.forEach((marker) => marker.remove?.());
     markersRef.current = [];
-
-    const visiblePoints = points.slice(0, 50);
-    markersRef.current = visiblePoints.map((trip) => new trackasiagl.Marker({
-      element: makeTripMarker(trip),
-      anchor: 'bottom',
-    })
-      .setLngLat([Number(trip.longitude), Number(trip.latitude)])
-      .addTo(map));
-
-    if (!fittedRef.current) {
-      fitMapToPoints(map, visiblePoints, { animate: false });
-      fittedRef.current = true;
+    for (const [kind, point, name] of [
+      ['pickup', endpoints.pickup, 'Điểm đón'],
+      ['destination', endpoints.destination, 'Điểm đến'],
+    ]) {
+      if (!point) continue;
+      markersRef.current.push(new trackasiagl.Marker({
+        element: createMarkerElement(kind, name), anchor:'bottom',
+      }).setLngLat([point.lon, point.lat]).addTo(map));
     }
-  }, [mapReady, points]);
+    map.resize();
+    fitMapToPoints(map, availablePoints, false);
+  }, [mapReady, endpoints, availablePoints]);
 
-  const resetView = React.useCallback(() => {
+  React.useEffect(() => {
+    if (!canRoute) {
+      setRouteData(null);
+      setRouteError('');
+      setRouteLoading(false);
+      return undefined;
+    }
+    const url = trackAsiaRouteUrl({
+      pickup:endpoints.pickup, destination:endpoints.destination, serviceCode:profile,
+      apiBaseUrl:trackAsiaConfig.apiBaseUrl, apiKey:trackAsiaConfig.apiKey,
+    });
+    if (!url) {
+      setRouteError('Chưa có cấu hình TrackAsia hợp lệ để tính tuyến đường.');
+      return undefined;
+    }
+    const controller = new AbortController();
+    let active = true;
+    let timedOut = false;
+    const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 14000);
+    setRouteLoading(true);
+    setRouteError('');
+    setRouteData(null);
+    fetch(url, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return parseTrackAsiaRoute(await response.json());
+      })
+      .then((result) => { if (active && !controller.signal.aborted) setRouteData(result); })
+      .catch((error) => {
+        if (!active) return;
+        setRouteError(timedOut
+          ? 'Định tuyến quá thời gian phản hồi.'
+          : `Không lấy được tuyến TrackAsia (${error.message}). Kiểm tra key, CORS và dịch vụ định tuyến.`);
+      })
+      .finally(() => { clearTimeout(timeout); if (active) setRouteLoading(false); });
+    return () => { active = false; controller.abort(); clearTimeout(timeout); };
+  // routeKey captures the current booking endpoints and service profile.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeKey, canRoute]);
+
+  React.useEffect(() => {
+    if (!mapReady || !routeData?.geometry) return;
     const map = mapRef.current;
     if (!map) return;
-    fitMapToPoints(map, points.slice(0, 50), { animate: true });
-  }, [points]);
+    try {
+      drawRoute(map, routeData.geometry);
+      map.resize();
+      fitMapToPoints(map, routeData.geometry.coordinates, false);
+    } catch (error) {
+      setRouteError(`Không thể vẽ tuyến trên bản đồ: ${error.message}`);
+    }
+  }, [mapReady, routeData]);
 
+  const resetView = () => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.resize();
+    fitMapToPoints(map, routeData?.geometry?.coordinates || availablePoints);
+  };
   return (
     <section className="trip-map-card" aria-labelledby="trip-map-title">
       <header className="trip-map-header">
         <div>
-          <h2 id="trip-map-title">Bản đồ điều hành TrackAsia</h2>
-          <p>Kéo để di chuyển · lăn chuột/pinch để zoom · dữ liệu vị trí lấy trực tiếp từ chuyến xe.</p>
+          <h2 id="trip-map-title">Bản đồ hành trình TrackAsia</h2>
+          <p>Điểm đón A → điểm đến B · kéo, zoom và bấm định vị lại khung nhìn.</p>
         </div>
         <div className="trip-map-state">
-          <span className="live-badge"><span /> Live</span>
-          <span className="trip-map-count">{points.length}/{trips.length} chuyến có tọa độ</span>
+          <span className="trip-map-count">{availablePoints.length}/2 điểm có tọa độ</span>
         </div>
       </header>
-
-      <div className="trackasia-map-shell">
-        <div
-          ref={hostRef}
-          className="trackasia-trip-map"
-          role="region"
-          aria-label="Bản đồ TrackAsia hiển thị vị trí các chuyến xe. Có thể kéo để di chuyển và lăn chuột để thu phóng."
-        />
-
-        <button className="trackasia-reset-control" type="button" onClick={resetView} title="Đưa bản đồ về khung tự động" aria-label="Đưa bản đồ về khung tự động">
-          <Crosshair size={16} />
-        </button>
-
-        {!points.length && !mapError && (
-          <div className="trackasia-map-empty">
-            <MapPin size={20} />
-            <span>Chưa có tọa độ hợp lệ trong dữ liệu chuyến</span>
-            <small>Bản đồ TrackAsia vẫn hiển thị khu vực TP.HCM.</small>
-          </div>
-        )}
-
-        {mapError && <div className="trackasia-map-error">{mapError}</div>}
+      <div className="trackasia-map-shell trip-map-expanded-shell">
+        <div ref={hostRef} className="trackasia-trip-map trip-map-expanded-canvas" role="region" aria-label="Bản đồ hành trình và vị trí điểm đón, điểm đến" />
+        <button className="trackasia-reset-control" type="button" onClick={resetView} aria-label="Định vị lại hành trình" title="Định vị lại hành trình"><Crosshair size={16}/></button>
+        {mapError && <div className="trackasia-map-error" role="alert">{mapError}</div>}
+        {!mapError && !availablePoints.length && <div className="trackasia-map-empty"><MapPin size={20}/><span>Chuyến không có tọa độ GPS hợp lệ.</span><small>Dữ liệu cũ chỉ lưu địa chỉ; không tự đoán vị trí.</small></div>}
         {usesTrackAsiaPublicTestKey() && <span className="trackasia-key-badge">TrackAsia test key</span>}
+      </div>
+      <div className="imove-trip-map-footer" aria-live="polite">
+        {!endpoints.pickup && <span className="imove-map-warn">Thiếu tọa độ điểm đón</span>}
+        {!endpoints.destination && <span className="imove-map-warn">Thiếu tọa độ điểm đến</span>}
+        {routeLoading && <span><Route size={14}/> Đang tính tuyến đường thực tế...</span>}
+        {routeData && !routeError && <span><Route size={14}/> Tuyến: {routeData.distanceKm?.toFixed(1) ?? '—'} km · {routeData.durationMinutes?.toFixed(0) ?? '—'} phút (ước tính)</span>}
+        {routeError && <span className="imove-map-warn">{routeError}</span>}
+        {!routeLoading && !routeError && !routeData && availablePoints.length === 1 && <span>Chỉ hiển thị được vị trí đã lưu, chưa đủ hai điểm để dẫn đường.</span>}
       </div>
     </section>
   );

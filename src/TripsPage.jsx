@@ -95,7 +95,12 @@ export default function TripsPage() {
       <aside className="enterprise-drawer wide" role="dialog" aria-modal="true" onMouseDown={e=>e.stopPropagation()}>
         <header><div><span className="enterprise-eyebrow">TRIP DETAIL</span><h2>{safeDisplay(selected.row.code||selected.row.id)}</h2></div><button className="icon-button" onClick={()=>setSelected(null)} aria-label="Đóng">×</button></header>
         {selected.loading?<PageLoading/>:selected.error?<PageError message={selected.error}/>:<>
-          <TripOperationsMap trips={[{...trip,id:selected.row.code||selected.row.id,pickup:selected.row.pickup,destination:selected.row.destination}]}/>
+          <TripOperationsMap key={String(trip._id || selected.row.id)} trips={[{
+            ...trip,
+            id: selected.row.code || selected.row.id,
+            pickup: trip.pickup ?? selected.row.pickup,
+            destination: trip.destination ?? selected.row.destination,
+          }]}/>
           <div className="enterprise-detail-grid">
             <div><span>Dịch vụ</span><b><Route size={15}/>{serviceLabel(trip)}</b></div>
             <div><span>Trạng thái</span><b>{safeDisplay(trip.status)}</b></div>
