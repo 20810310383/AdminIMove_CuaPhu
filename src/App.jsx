@@ -1281,7 +1281,7 @@ function AdminApp(){
   if(page==='kyc')view=can('drivers.review')?<DriverManagement/>:<PermissionDenied/>;
   if(page==='trips')view=can('bookings.view')?<TripsPage/>:<PermissionDenied/>;
   if(page==='pricing')view=can('pricing.view')?<ServicePricingPage/>:<PermissionDenied/>;
-  if(page==='merchants')view=can('merchants.view')?<MerchantsPage/>:<PermissionDenied/>;
+  if(page==='merchants')view=can('merchants.view')?<MerchantsPage access={adminAccess}/>:<PermissionDenied/>;
   if(page==='commerce-orders')view=can('orders.view')?<CommerceOrdersPage/>:<PermissionDenied/>;
   if(page==='promotions')view=can('promotions.view')?<PromotionsAdminPage/>:<PermissionDenied/>;
   if(page==='ad-banners')view=can('promotions.view')?<AdBannersAdminPage/>:<PermissionDenied/>;

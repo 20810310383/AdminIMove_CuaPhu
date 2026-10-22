@@ -18,6 +18,7 @@ const PERMISSION_GROUPS=[
   ['Trust & Safety',[['trust.view','Xem Trust & Safety'],['trust.review','Duyệt xác thực và fraud case'],['trust.manage','Quản lý rule Trust/Fraud']]],
   ['Giá cước',[['pricing.view','Xem bảng giá'],['pricing.create','Tạo bảng giá'],['pricing.activate','Kích hoạt bảng giá'],['pricing.archive','Lưu trữ bảng giá'],['fees.view','Xem phụ phí'],['fees.manage','Quản lý phụ phí']]],
   ['Khuyến mãi',[['promotions.view','Xem khuyến mãi'],['promotions.manage','Tạo/sửa/tắt khuyến mãi']]],
+  ['Nhà hàng & Cửa hàng',[['merchants.view','Xem hồ sơ cửa hàng'],['merchants.manage','Chỉnh thông tin cửa hàng'],['merchants.approve','Duyệt / từ chối hồ sơ cửa hàng']]],
   ['Thanh toán',[['payments.view','Xem thanh toán'],['payments.refund','Hoàn/điều chỉnh thanh toán'],['wallets.view','Xem ví'],['wallets.adjust','Điều chỉnh ví'],['settlements.view','Xem đối soát'],['settlements.manage','Quản lý đối soát']]],
   ['CSKH',[['support.view','Xem hỗ trợ'],['support.assign','Phân công hỗ trợ'],['support.reply','Phản hồi khách hàng'],['support.close','Đóng yêu cầu']]],
   ['Cài đặt & báo cáo',[['settings.view','Xem cài đặt'],['settings.manage','Chỉnh cài đặt'],['reports.view','Xem báo cáo'],['audit.view','Xem nhật ký hệ thống']]],
