@@ -1,0 +1,12 @@
+/* Limit QR preview image rules to QR content, never the PNG icon in the title. */
+.fund-qr-preview .fund-bank-title>img.admin-png-icon,
+.fund-qr-preview .fund-bank-title>.admin-png-icon,
+.fund-bank-card .fund-bank-title>img.admin-png-icon{
+  display:block!important;width:24px!important;height:24px!important;
+  min-width:24px!important;max-width:24px!important;max-height:24px!important;
+  aspect-ratio:auto!important;object-fit:contain!important;
+  border:0!important;padding:0!important;background:transparent!important;
+  border-radius:0!important;box-shadow:none!important;flex:0 0 24px!important;
+}
+.fund-qr-preview>img:not(.admin-png-icon){width:min(240px,100%)!important;height:auto!important;max-height:275px!important;aspect-ratio:1/1!important;object-fit:contain}
+.fund-qr-preview .fund-bank-title{display:flex;align-items:center;gap:10px;min-height:28px}
