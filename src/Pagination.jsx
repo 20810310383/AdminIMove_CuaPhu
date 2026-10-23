@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight, LoaderCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LoaderCircle } from './adminPngLucide.jsx';
 
 export const PAGE_LIMIT = 20;
 

@@ -3,7 +3,7 @@ import {
   Activity, AlertCircle, CheckCircle2, ChevronDown, Clock3, Copy,
   Database, Globe2, LockKeyhole, MapPinned, Power,
   RefreshCw, Server, ShieldCheck, Terminal, WifiOff,
-} from 'lucide-react';
+} from './adminPngLucide.jsx';
 import { adminApiRequest } from './adminApi.js';
 import { CORE_BACKEND_URL } from './apiRuntime.js';
 import { trackAsiaConfig, usesTrackAsiaPublicTestKey } from './trackAsiaConfig.js';

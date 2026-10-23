@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, MapPin, UserRoundCheck, Database, LockKeyhole, Trash2, ExternalLink } from 'lucide-react';
+import { ShieldCheck, MapPin, UserRoundCheck, Database, LockKeyhole, Trash2, ExternalLink } from './adminPngLucide.jsx';
 
 const UPDATED_AT = '29/09/2026';
 

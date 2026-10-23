@@ -8,7 +8,7 @@ import {
   UserRound,
   UsersRound,
   XCircle,
-} from 'lucide-react';
+} from './adminPngLucide.jsx';
 import { coreApiRequest } from './coreApi.js';
 import { hasPermission } from './adminApi.js';
 

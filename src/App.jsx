@@ -41,7 +41,7 @@ import {
   CalendarDays, Star, MapPin, TrendingUp, UserRoundCheck, BadgeDollarSign,
   FileText, Eye, Pencil, Trash2, Plus, ChevronDown, UsersRound, History, Activity, RadioTower, Fingerprint, Megaphone,
   PanelLeftClose, PanelLeftOpen, Store, ShoppingBag, MessageCircle
-} from 'lucide-react';
+} from './adminPngLucide.jsx';
 
 const defaultSettings={companyName:'Công ty TNHH Đầu tư T&H 79',brandName:'TH79 iMove',hotline:'0335555066',autoAssign:true};
 const dbCache={customers:[],drivers:[],trips:[],payments:[],revenue:[],settings:{...defaultSettings}};
@@ -1281,7 +1281,7 @@ function AdminApp(){
   if(page==='kyc')view=can('drivers.review')?<DriverManagement/>:<PermissionDenied/>;
   if(page==='trips')view=can('bookings.view')?<TripsPage/>:<PermissionDenied/>;
   if(page==='pricing')view=can('pricing.view')?<ServicePricingPage/>:<PermissionDenied/>;
-  if(page==='merchants')view=can('merchants.view')?<MerchantsPage access={adminAccess}/>:<PermissionDenied/>;
+  if(page==='merchants')view=can('merchants.view')?<MerchantsPage/>:<PermissionDenied/>;
   if(page==='commerce-orders')view=can('orders.view')?<CommerceOrdersPage/>:<PermissionDenied/>;
   if(page==='promotions')view=can('promotions.view')?<PromotionsAdminPage/>:<PermissionDenied/>;
   if(page==='ad-banners')view=can('promotions.view')?<AdBannersAdminPage/>:<PermissionDenied/>;

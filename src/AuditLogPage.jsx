@@ -4,7 +4,7 @@ import {
   History, RefreshCw, Search, UserRound, ShieldCheck, UserPlus, UserCog,
   UserX, KeyRound, Settings, Route, BadgeDollarSign, Trash2, Pencil,
   LockKeyhole, Eye, X, SlidersHorizontal, Clock3
-} from 'lucide-react';
+} from './adminPngLucide.jsx';
 import { adminApiRequest } from './adminApi.js';
 
 const ACTION_META = {

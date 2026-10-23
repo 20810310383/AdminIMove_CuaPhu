@@ -10,7 +10,7 @@ import {
   RefreshCw,
   CheckCircle2,
   AlertTriangle,
-} from 'lucide-react';
+} from './adminPngLucide.jsx';
 import { adminApiRequest } from './adminApi.js';
 
 function initials(name=''){

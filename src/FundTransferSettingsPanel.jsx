@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Banknote, CheckCircle2, Copy, Image, QrCode, RefreshCw, Save, Upload, XCircle } from 'lucide-react';
+import { Banknote, CheckCircle2, Copy, Image, QrCode, RefreshCw, Save, Upload, XCircle } from './adminPngLucide.jsx';
 import { coreApiRequest } from './coreApi.js';
 import { coreUrl } from './apiRuntime.js';
 

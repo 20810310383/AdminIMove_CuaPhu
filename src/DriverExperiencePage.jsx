@@ -1,6 +1,6 @@
 import AdminOverlayPortal from './AdminOverlayPortal.jsx';
 import React from 'react';
-import { Activity, Award, Flame, MapPinned, Plus, RefreshCw, Star, Target, Users, X } from 'lucide-react';
+import { Activity, Award, Flame, MapPinned, Plus, RefreshCw, Star, Target, Users, X } from './adminPngLucide.jsx';
 import { coreApiRequest } from './coreApi.js';
 
 const money=(v)=>new Intl.NumberFormat('vi-VN').format(Number(v||0))+' ₫';

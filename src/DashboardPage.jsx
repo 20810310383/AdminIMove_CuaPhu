@@ -11,7 +11,7 @@ import {
   Star,
   Users,
   WalletCards,
-} from 'lucide-react';
+} from './adminPngLucide.jsx';
 import { coreApiRequest } from './coreApi.js';
 import { hasPermission } from './adminApi.js';
 import { money, normalizeServiceCode, paymentStatusGroup, isSameLocalDay } from './analyticsModel.js';

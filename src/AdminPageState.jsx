@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, LoaderCircle, RefreshCw, ShieldX, Inbox } from 'lucide-react';
+import { AlertTriangle, LoaderCircle, RefreshCw, ShieldX, Inbox } from './adminPngLucide.jsx';
 
 function StateCard({className,icon:Icon,title,description,onRetry}){
   return <section className={`admin-state-card ${className}`} role={className==='state-error'?'alert':'status'} aria-live="polite">

@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, CheckCircle2, CircleHelp, Pause, Play, RotateCcw, SkipForward, Users, Zap } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CircleHelp, Pause, Play, RotateCcw, SkipForward, Users, Zap } from './adminPngLucide.jsx';
 
 const FALLBACK_ROUNDS = [
   { radiusKm: 2, maxCandidates: 5, offerTimeoutSeconds: 7 },

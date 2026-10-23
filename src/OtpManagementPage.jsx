@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Search, RotateCcw, Ban, ShieldCheck, MessageSquareText, CheckCircle2, XCircle, Clock3 } from 'lucide-react';
+import { RefreshCw, Search, RotateCcw, Ban, ShieldCheck, MessageSquareText, CheckCircle2, XCircle, Clock3 } from './adminPngLucide.jsx';
 import { coreApiRequest } from './coreApi.js';
 import { hasPermission } from './adminApi.js';
 

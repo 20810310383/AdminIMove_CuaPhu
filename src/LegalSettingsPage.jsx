@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, ShieldCheck, Save, RefreshCw, Eye, EyeOff, CalendarDays, TriangleAlert, CheckCircle2, Smartphone, Truck, Store, MonitorSmartphone } from 'lucide-react';
+import { FileText, ShieldCheck, Save, RefreshCw, Eye, EyeOff, CalendarDays, TriangleAlert, CheckCircle2, Smartphone, Truck, Store, MonitorSmartphone } from './adminPngLucide.jsx';
 import { coreApiRequest } from './coreApi.js';
 import { hasPermission } from './adminApi.js';
 import LegalRichEditor, { plainDocument } from './LegalRichEditor.jsx';

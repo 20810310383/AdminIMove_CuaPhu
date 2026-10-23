@@ -1,6 +1,6 @@
 import AdminOverlayPortal from './AdminOverlayPortal.jsx';
 import React from 'react';
-import { RefreshCw, Search, Route, WalletCards, Tag, Clock3, Eye, Trash2, RotateCcw, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Search, Route, WalletCards, Tag, Clock3, Eye, Trash2, RotateCcw, AlertTriangle } from './adminPngLucide.jsx';
 import { coreApiRequest } from './coreApi.js';
 import { safeDisplay, numberValue } from './uiModel.js';
 import { money, normalizeServiceCode } from './analyticsModel.js';

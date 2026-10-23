@@ -1,7 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import './imove-modal-fix-v21.css';
-import { BadgePercent, Plus, RefreshCw, Save, Pencil, Power } from 'lucide-react';
+import { BadgePercent, Plus, RefreshCw, Save, Pencil, Power } from './adminPngLucide.jsx';
 import { coreApiRequest } from './coreApi.js';
 import { REQUIRED_SERVICE_CODES, SERVICE_LABELS, formatVnd } from './servicePricingModel.js';
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { ImagePlus, Plus, RefreshCw, Pencil, Trash2, Save, Upload, Eye, EyeOff, CalendarDays, Images } from 'lucide-react';
+import { ImagePlus, Plus, RefreshCw, Pencil, Trash2, Save, Upload, Eye, EyeOff, CalendarDays, Images } from './adminPngLucide.jsx';
 import { coreApiRequest } from './coreApi.js';
 import { coreUrl } from './apiRuntime.js';
 import './ad-banners-admin.css';

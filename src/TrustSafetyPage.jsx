@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, TriangleAlert, ScanFace, Smartphone, MapPinned, Ban, RefreshCw, CheckCircle2, XCircle, Radar, Fingerprint } from 'lucide-react';
+import { ShieldCheck, TriangleAlert, ScanFace, Smartphone, MapPinned, Ban, RefreshCw, CheckCircle2, XCircle, Radar, Fingerprint } from './adminPngLucide.jsx';
 import { adminApiRequest, adminAccessToken } from './adminApi.js';
 import { coreUrl } from './apiRuntime.js';
 import { PermissionDenied, PageError } from './AdminPageState.jsx';

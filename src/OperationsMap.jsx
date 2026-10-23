@@ -1,5 +1,5 @@
 import React from 'react';
-import { Crosshair } from 'lucide-react';
+import { Crosshair } from './adminPngLucide.jsx';
 import { validDriverPoint } from './operationsMapModel.js';
 import { getTrackAsiaGL, getTrackAsiaStyleUrl, trackAsiaConfig, usesTrackAsiaPublicTestKey } from './trackAsiaConfig.js';
 

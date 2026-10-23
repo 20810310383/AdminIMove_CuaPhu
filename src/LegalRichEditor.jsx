@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bold, Italic, Underline, List, ListOrdered, Heading2, Heading3, Pilcrow, Link2, Undo2, Redo2, RemoveFormatting, Quote, AlignLeft, AlignCenter, AlignRight, Palette } from 'lucide-react';
+import { Bold, Italic, Underline, List, ListOrdered, Heading2, Heading3, Pilcrow, Link2, Undo2, Redo2, RemoveFormatting, Quote, AlignLeft, AlignCenter, AlignRight, Palette } from './adminPngLucide.jsx';
 
 // Backend accepts only this structured document, not raw HTML; edited content
 // is normalized using an allow-list before being sent across the network.

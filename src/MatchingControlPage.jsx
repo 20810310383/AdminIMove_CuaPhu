@@ -3,7 +3,7 @@ import {
   Activity, AlertTriangle, Ban, CheckCircle2, Clock3, Gauge, MapPin,
   RadioTower, RefreshCw, RotateCcw, Save, Scale, Send, SlidersHorizontal,
   Star, Trophy, Users, Zap, WalletCards
-} from 'lucide-react';
+} from './adminPngLucide.jsx';
 import { coreApiRequest } from './coreApi.js';
 import { hasPermission } from './adminApi.js';
 import DispatchRoundSimulator from './DispatchRoundSimulator.jsx';

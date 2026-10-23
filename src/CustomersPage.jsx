@@ -1,6 +1,6 @@
 import AdminOverlayPortal from './AdminOverlayPortal.jsx';
 import React from 'react';
-import { RefreshCw, Search, Star, Route, UserRound, ShieldAlert } from 'lucide-react';
+import { RefreshCw, Search, Star, Route, UserRound, ShieldAlert } from './adminPngLucide.jsx';
 import { adminApiRequest } from './adminApi.js';
 import { safeDisplay, numberValue } from './uiModel.js';
 import { PageEmpty, PageError, PageLoading } from './AdminPageState.jsx';

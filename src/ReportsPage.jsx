@@ -1,5 +1,5 @@
 import React from 'react';
-import {BarChart3,Download,RefreshCw,Car,CheckCircle2,WalletCards,Star} from 'lucide-react';
+import {BarChart3,Download,RefreshCw,Car,CheckCircle2,WalletCards,Star} from './adminPngLucide.jsx';
 import {coreApiRequest} from './coreApi.js';
 import {money} from './analyticsModel.js';
 function exportXls(data){const rows=[['Chỉ số','Giá trị'],['Tổng chuyến',data.kpis?.trips||0],['Hoàn thành',data.kpis?.completed||0],['Tỷ lệ hoàn thành',`${Number(data.kpis?.completionRate||0).toFixed(1)}%`],['Doanh thu khách trả',data.kpis?.grossFare||0],['Doanh thu nền tảng',data.kpis?.platformRevenue||0],['Driver net',data.kpis?.driverNet||0],['Thanh toán PAID',data.kpis?.paidCount||0],['Settlement backlog',data.kpis?.settlementBacklog||0]];const html=`<table>${rows.map(r=>`<tr>${r.map(c=>`<td>${String(c)}</td>`).join('')}</tr>`).join('')}</table>`;const blob=new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='TH79_iMove_Bao_cao_1.4.0.xls';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}

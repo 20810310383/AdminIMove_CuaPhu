@@ -2,7 +2,7 @@ import React from 'react';
 import {
   CheckCircle2, LockKeyhole, MessageSquareLock, RefreshCw, Save,
   ShieldAlert, ShieldCheck, Smartphone, Store, TriangleAlert, UserRound, CarFront,
-} from 'lucide-react';
+} from './adminPngLucide.jsx';
 import { coreApiRequest } from './coreApi.js';
 import { coreUrl, fetchWithTimeout } from './apiRuntime.js';
 import { hasPermission } from './adminApi.js';

@@ -16,7 +16,7 @@ import {
   X,
   Save,
   History,
-} from 'lucide-react';
+} from './adminPngLucide.jsx';
 import { coreApiRequest } from './coreApi.js';
 import FundTransferSettingsPanel from './FundTransferSettingsPanel.jsx';
 

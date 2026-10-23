@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, AlertTriangle, CheckCircle2, RefreshCw, Route, Search, Server, ShieldCheck, Users, WalletCards, X } from 'lucide-react';
+import { Activity, AlertTriangle, CheckCircle2, RefreshCw, Route, Search, Server, ShieldCheck, Users, WalletCards, X } from './adminPngLucide.jsx';
 import { coreApiRequest, getCoreConnection } from './coreApi.js';
 import OperationsMap from './OperationsMap.jsx';
 

@@ -4,7 +4,7 @@ import './imove-modal-fix-v21.css';
 import {
   Bike, Car, Package, ShoppingBasket, UtensilsCrossed, BusFront, Sparkles,
   Plus, RefreshCw, Save, History, Power, Pencil, Copy, Clock3,
-} from 'lucide-react';
+} from './adminPngLucide.jsx';
 import {coreApiRequest} from './coreApi.js';
 import {
   REQUIRED_SERVICE_CODES,SERVICE_LABELS,formatVnd,currentFareFor,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Crosshair, MapPin, Route } from 'lucide-react';
+import { Crosshair, MapPin, Route } from './adminPngLucide.jsx';
 import { getTrackAsiaGL, getTrackAsiaStyleUrl, trackAsiaConfig, usesTrackAsiaPublicTestKey } from './trackAsiaConfig.js';
 import { extractTripEndpoints, parseTrackAsiaRoute, trackAsiaRouteUrl } from './tripMapGeometry.js';
 

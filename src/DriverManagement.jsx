@@ -26,7 +26,7 @@ import {
   UsersRound,
   X,
   XCircle,
-} from 'lucide-react';
+} from './adminPngLucide.jsx';
 
 import { coreApiRequest, openCorePrivateFile } from './coreApi.js';
 

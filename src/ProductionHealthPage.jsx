@@ -23,7 +23,7 @@ import {
   CheckCircle2,
   Clock3,
   Wrench,
-} from 'lucide-react';
+} from './adminPngLucide.jsx';
 import { coreApiRequest } from './coreApi.js';
 import RegistrationOtpPanel from './RegistrationOtpPanel.jsx';
 

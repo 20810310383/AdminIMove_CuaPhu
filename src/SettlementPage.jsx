@@ -1,5 +1,5 @@
 import React from 'react';
-import { CircleDollarSign, RefreshCw, RotateCcw, WalletCards, Star, Landmark, AlertTriangle } from 'lucide-react';
+import { CircleDollarSign, RefreshCw, RotateCcw, WalletCards, Star, Landmark, AlertTriangle } from './adminPngLucide.jsx';
 import { coreApiRequest } from './coreApi.js';
 import { money } from './analyticsModel.js';
 import { SETTLEMENT_STAGES, settlementStatusLabel } from './settlementModel.js';
