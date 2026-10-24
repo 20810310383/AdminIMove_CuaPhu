@@ -147,9 +147,9 @@ export default function DriverPointsManagementPage() {
     return () => document.removeEventListener('keydown', onKey);
   }, [selectedId]);
 
-  return <main className="dpc-page">
+  return <main className="dpc-page" data-imove-feature="driver-points-center-v2">
     <header className="dpc-page-head">
-      <div><span className="dpc-eyebrow">TH79 IMOVE · DRIVER POINTS</span><h1>Quản lý điểm tài xế</h1><p>Tra cứu số dư, cộng/trừ điểm thủ công và lịch sử theo từng tài xế. Nạp tiền/QR được quản lý ở trang Nạp quỹ.</p></div>
+      <div><span className="dpc-eyebrow">TH79 IMOVE · DRIVER POINTS CENTER V2</span><h1>Quản lý điểm tài xế</h1><p>Tra cứu số dư, cộng/trừ điểm thủ công và lịch sử theo từng tài xế. Nạp tiền/QR được quản lý ở trang Nạp quỹ.</p></div>
       <button type="button" className="button" onClick={load} disabled={loading}><RefreshCw size={17}/> Làm mới</button>
     </header>
     {error && <p className="dpc-alert" role="alert">{error}</p>}
