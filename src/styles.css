@@ -3933,3 +3933,68 @@ img,svg{max-width:100%}
   .support-compose { grid-template-columns: 1fr; }
   .support-send { width: 100%; }
 }
+
+/* Clear feedback while an admin assigns a commerce order to a driver. */
+.commerce-assign-pending {
+  color: #0b5ea8 !important;
+  border-color: #9bc9f4 !important;
+  background: #edf7ff !important;
+  box-shadow: 0 0 0 0 rgba(35, 131, 214, .25);
+  animation: commerce-assign-pulse 1.1s ease-in-out infinite;
+}
+.commerce-assign-spin { animation: commerce-assign-spin .8s linear infinite; }
+@keyframes commerce-assign-spin { to { transform: rotate(360deg); } }
+@keyframes commerce-assign-pulse {
+  50% { box-shadow: 0 0 0 6px rgba(35, 131, 214, 0); }
+}
+.commerce-driver-loading { padding: 4px 0 2px; }
+.commerce-driver-loading-copy {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 13px;
+  border: 1px solid #e6ebf0;
+  border-radius: 14px;
+  background: #fafbfd;
+  color: #374151;
+}
+.commerce-driver-loading-copy b { display: block; font-size: 13px; }
+.commerce-driver-loading-copy small { display: block; margin-top: 3px; color: #7b8794; font-size: 11px; }
+.commerce-driver-loading-spinner {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  box-sizing: border-box;
+  border: 3px solid #f5c4cd;
+  border-top-color: #df1830;
+  border-radius: 50%;
+  animation: commerce-assign-spin .85s linear infinite;
+}
+.commerce-driver-loading-skeletons { display: grid; gap: 9px; margin-top: 10px; }
+.commerce-driver-skeleton {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 86px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #edf0f3;
+  border-radius: 15px;
+}
+.commerce-driver-skeleton > span,
+.commerce-driver-skeleton > em,
+.commerce-driver-skeleton i {
+  display: block;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #edf1f5 20%, #f8fafc 45%, #edf1f5 70%);
+  background-size: 220% 100%;
+  animation: commerce-skeleton-shimmer 1.35s ease-in-out infinite;
+}
+.commerce-driver-skeleton > span { width: 44px; height: 44px; border-radius: 14px; }
+.commerce-driver-skeleton > div { display: grid; gap: 8px; }
+.commerce-driver-skeleton i { width: 58%; height: 11px; }
+.commerce-driver-skeleton i + i { width: 82%; height: 9px; }
+.commerce-driver-skeleton > em { width: 86px; height: 32px; }
+@keyframes commerce-skeleton-shimmer { to { background-position: -220% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .commerce-assign-pending,.commerce-assign-spin,.commerce-driver-loading-spinner,.commerce-driver-skeleton > span,.commerce-driver-skeleton > em,.commerce-driver-skeleton i { animation: none; }
+}
