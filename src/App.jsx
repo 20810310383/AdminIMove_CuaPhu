@@ -41,7 +41,7 @@ import {
   CalendarDays, Star, MapPin, TrendingUp, UserRoundCheck, BadgeDollarSign,
   FileText, Eye, Pencil, Trash2, Plus, ChevronDown, UsersRound, History, Activity, RadioTower, Fingerprint, Megaphone,
   PanelLeftClose, PanelLeftOpen, Store, ShoppingBag, MessageCircle
-} from './adminPngLucide.jsx';
+} from 'lucide-react';
 
 const defaultSettings={companyName:'Công ty TNHH Đầu tư T&H 79',brandName:'TH79 iMove',hotline:'0335555066',autoAssign:true};
 const dbCache={customers:[],drivers:[],trips:[],payments:[],revenue:[],settings:{...defaultSettings}};
@@ -758,16 +758,21 @@ function Drivers(){
   const driverPhone=r=>linkedUser(r)?.phone||r?.phone||'';
   const driverEmail=r=>linkedUser(r)?.email||r?.email||'';
 
-  const filtered=rows.filter(r=>`${r.id||''} ${driverName(r)} ${driverPhone(r)} ${driverEmail(r)} ${r.service||''} ${r.area||''}`.toLowerCase().includes(q.toLowerCase()));
+  const serviceLabels={BIKE:'Xe máy',CAR_4:'Ô tô 4 chỗ',CAR_7:'Ô tô 7 chỗ',MPV_7:'MPV 7 chỗ',LUXURY_4:'Luxury 4 chỗ',LUXURY_7:'Luxury 7 chỗ'};
+  const serviceCode=r=>String(r.vehicle?.serviceCode||r.registeredServiceCode||r.serviceCode||r.service||'').toUpperCase();
+  const serviceName=r=>serviceLabels[serviceCode(r)]||serviceCode(r)||'Chưa đăng ký';
+  const vehicleName=r=>[r.vehicle?.brand,r.vehicle?.model].filter(Boolean).join(' ').trim();
+  const vehiclePlate=r=>r.vehicle?.plateNumber||'';
+  const filtered=rows.filter(r=>`${r.id||''} ${driverName(r)} ${driverPhone(r)} ${driverEmail(r)} ${serviceCode(r)} ${serviceName(r)} ${vehicleName(r)} ${vehiclePlate(r)} ${r.area||''}`.toLowerCase().includes(q.toLowerCase()));
   function commit(next){setRows(next);write('drivers',next)}
   const exportColumns=[
     {key:'id',label:'Mã tài xế'},{key:'name',label:'Họ tên',get:r=>driverName(r)},{key:'phone',label:'Số điện thoại',get:r=>driverPhone(r)},{key:'service',label:'Dịch vụ'},
-    {key:'area',label:'Khu vực'},{key:'license',label:'GPLX'},{key:'rating',label:'Đánh giá',get:r=>r.rating||''},{key:'trips',label:'Số chuyến'},
+    {key:'vehicle',label:'Phương tiện đăng ký',get:r=>`${serviceName(r)} · ${vehicleName(r)} · ${vehiclePlate(r)}`},{key:'area',label:'Khu vực'},{key:'license',label:'GPLX'},{key:'rating',label:'Đánh giá',get:r=>r.rating||''},{key:'trips',label:'Số chuyến'},
     {key:'income',label:'Thu nhập'},{key:'approval',label:'Hồ sơ',get:r=>labels[r.approval]||r.approval},{key:'online',label:'Online',get:r=>driverIsOnline(r)?'Online':'Offline'}
   ];
   return <><PageIntro title="Tài xế" description="Theo dõi tài xế và trạng thái hoạt động. Online được cập nhật tự động từ ứng dụng tài xế; Admin không thể bật/tắt thủ công." actions={<button type="button" className="button" onClick={()=>setShowExport(true)}><Download size={16}/> Xuất Excel</button>}/>
     <section className="summary-strip" aria-label="Tổng hợp tài xế"><div><Car size={17}/><span><b>{rows.length}</b><small>Tổng tài xế</small></span></div><div><span className="live-dot"></span><span><b>{rows.filter(driverIsOnline).length}</b><small>Đang online</small></span></div><div><Clock3 size={17}/><span><b>{rows.filter(x=>x.approval==='pending').length}</b><small>Chờ duyệt</small></span></div><div><Star size={17}/><span><b>4.8</b><small>Đánh giá TB</small></span></div></section>
-    <section className="card data-card"><CardHeading title="Danh sách tài xế" sub="Chấm xanh = Online · chấm đỏ = Offline" action={<SearchField value={q} onChange={setQ} placeholder="Tên, khu vực, dịch vụ..."/>}/><TableShell caption="Danh sách tài xế TH79 iMove"><thead><tr><th scope="col">Tài xế</th><th scope="col">Dịch vụ</th><th scope="col">Khu vực</th><th scope="col">GPLX</th><th scope="col">Đánh giá</th><th scope="col">Chuyến</th><th scope="col">Thu nhập</th><th scope="col">Hồ sơ</th><th scope="col">Online</th></tr></thead><tbody>{filtered.map(r=>{const name=driverName(r);const phone=driverPhone(r);return <tr key={r.id}><td><MiniPerson name={name} sub={`${r.id} · ${phone||'—'}`}/></td><td>{r.service}</td><td>{r.area}</td><td>{r.license}</td><td><span className="rating"><Star size={14}/>{r.rating||'Mới'}</span></td><td>{r.trips}</td><td>{money(r.income)}</td><td>{r.approval==='pending'?<button className="button button-success button-small" onClick={()=>commit(rows.map(x=>x.id===r.id?{...x,approval:'approved'}:x))}><CheckCircle2 size={14}/> Duyệt</button>:<Status value="approved"/>}</td><td><DriverOnlineIndicator row={r}/></td></tr>})}</tbody></TableShell></section>
+    <section className="card data-card"><CardHeading title="Danh sách tài xế" sub="Chấm xanh = Online · chấm đỏ = Offline" action={<SearchField value={q} onChange={setQ} placeholder="Tên, khu vực, dịch vụ..."/>}/><TableShell caption="Danh sách tài xế TH79 iMove"><thead><tr><th scope="col">Tài xế</th><th scope="col">Dịch vụ đăng ký</th><th scope="col">Phương tiện đăng ký</th><th scope="col">Khu vực</th><th scope="col">GPLX</th><th scope="col">Đánh giá</th><th scope="col">Chuyến</th><th scope="col">Thu nhập</th><th scope="col">Hồ sơ</th><th scope="col">Online</th></tr></thead><tbody>{filtered.map(r=>{const name=driverName(r);const phone=driverPhone(r);return <tr key={r.id}><td><MiniPerson name={name} sub={`${r.id} · ${phone||'—'}`}/></td><td>{serviceName(r)}</td><td><div style={{display:'grid',gap:3,minWidth:138}}><b>{vehicleName(r)||'Chưa có thông tin xe'}</b><small style={{color:'#7b8390'}}>{vehiclePlate(r)||'Chưa có biển số'}</small></div></td><td>{r.area}</td><td>{r.license}</td><td><span className="rating"><Star size={14}/>{r.rating||'Mới'}</span></td><td>{r.trips}</td><td>{money(r.income)}</td><td>{r.approval==='pending'?<button className="button button-success button-small" onClick={()=>commit(rows.map(x=>x.id===r.id?{...x,approval:'approved'}:x))}><CheckCircle2 size={14}/> Duyệt</button>:<Status value="approved"/>}</td><td><DriverOnlineIndicator row={r}/></td></tr>})}</tbody></TableShell></section>
     <ExportFieldModal open={showExport} onClose={()=>setShowExport(false)} title="Xuất danh sách tài xế" filename="TH79_iMove_Danh_sach_tai_xe.xlsx" sheetName="Danh sách tài xế" columns={exportColumns} rows={filtered}/>
   </>
 }
