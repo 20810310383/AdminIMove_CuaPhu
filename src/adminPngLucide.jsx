@@ -61,6 +61,7 @@ const PNG_MAP = {
   "Fingerprint": "ic_driver_face_liveness.png",
   "ScanFace": "ic_driver_face_liveness.png",
   "FileText": "ic_terms.png",
+  "ClipboardCheck": "ic_orders.png",
   "ClipboardList": "ic_orders.png",
   "History": "ic_driver_completed_trips.png",
   "CalendarDays": "ic_orders.png",
@@ -263,3 +264,4 @@ export const hasCoreAdminSession = glyph("hasCoreAdminSession");
 export const BadgePercent = glyph("BadgePercent");
 export const ImagePlus = glyph("ImagePlus");
 export const Bell = glyph("Bell");
+export const ClipboardCheck = glyph("ClipboardCheck");
