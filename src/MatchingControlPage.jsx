@@ -67,15 +67,20 @@ export default function MatchingControlPage({access}){
 
   React.useEffect(()=>{load()},[load]);
 
-  const loadPreview=React.useCallback(async(id)=>{
+  const loadPreview=React.useCallback(async(id,{silent=false}={})=>{
     if(!id){setPreview(null);return}
-    setWorking('preview');setError('');
+    if(!silent){setWorking('preview');setError('')}
     try{setPreview(await coreApiRequest(`/api/v8/admin/matching/candidates/${encodeURIComponent(id)}`))}
-    catch(e){setPreview(null);setError(e.message||String(e))}
-    finally{setWorking('')}
+    catch(e){if(!silent){setPreview(null);setError(e.message||String(e))}}
+    finally{if(!silent)setWorking('')}
   },[]);
 
   React.useEffect(()=>{if(selectedBookingId)loadPreview(selectedBookingId)},[selectedBookingId,loadPreview]);
+  React.useEffect(()=>{
+    if(!selectedBookingId)return undefined;
+    const timer=window.setInterval(()=>{loadPreview(selectedBookingId,{silent:true})},10000);
+    return()=>window.clearInterval(timer);
+  },[selectedBookingId,loadPreview]);
 
   function setNested(group,key,value){setPolicy(p=>({...p,[group]:{...(p?.[group]||{}),[key]:value},strategy:'CUSTOM'}))}
   function applyPreset(code){
