@@ -113,13 +113,13 @@ export default function TripsPage() {
           <section className="enterprise-subsection"><h3>Dòng tiền liên quan</h3>{(selected.data?.financials||[]).map(t=><div className="enterprise-list-row" key={t.id}><b>{safeDisplay(t.type||t.title)}</b><span>{money(t.amount||0)} · {safeDisplay(t.status)}</span></div>)}{!(selected.data?.financials||[]).length&&<p>Không tìm thấy giao dịch ví trong dữ liệu chi tiết.</p>}</section>
           <section className="enterprise-subsection"><h3>Timeline</h3>{(selected.data?.events||[]).map(e=><div className="enterprise-list-row" key={e.id}><span><b>{safeDisplay(e.type)}</b><small><Clock3 size={11}/>{time(e.createdAt)}</small></span></div>)}{!(selected.data?.events||[]).length&&<PageEmpty/>}</section>
           <section className="enterprise-subsection" style={{borderTop:'1px solid #e5e7eb',paddingTop:14}}>
-            <h3>{archived?'Khôi phục chuyến đã lưu trữ':'Xử lý chuyến lỗi'}</h3>
+            <h3>{archived?'Khôi phục chuyến đã lưu trữ':'Xử lý chuyến lỗi'}</h3><p style={{fontSize:12}}>Trạng thái thực tế: <b>{safeDisplay(trip.status||selected.row.status)}</b> · Mã hệ thống: {safeDisplay(selected.row.id)}</p>
             {archived?<><p>Lý do lưu trữ: {safeDisplay(trip.adminArchiveReason)}</p><button className="button" disabled={working} onClick={archiveOrRestore}><RotateCcw size={15}/> Khôi phục hiển thị</button></>
             :canArchive?<>
               <p><AlertTriangle size={15} style={{verticalAlign:'middle'}}/> Xóa khỏi danh sách chỉ là <b>lưu trữ mềm</b>. Không xóa lịch sử, ví, payment, sự kiện hoặc bản ghi tài chính.</p>
               <label>Lý do lưu trữ (ít nhất 10 ký tự)<textarea rows="3" style={{display:'block',width:'100%',padding:10,border:'1px solid #d1d5db',borderRadius:8}} value={reason} onChange={e=>setReason(e.target.value)} placeholder="Ví dụ: chuyến thử nghiệm lỗi tọa độ, không có tài xế..."/></label>
               <label style={{display:'block',marginTop:10}}>Nhập lại mã chuyến để xác nhận<input style={{display:'block',width:'100%',padding:10,border:'1px solid #d1d5db',borderRadius:8}} value={confirmCode} onChange={e=>setConfirmCode(e.target.value)} placeholder={String(selected.row.code||selected.row.id)}/></label>
-              <button className="button" style={{marginTop:12,color:'#b91c1c'}} disabled={working||reason.trim().length<10||confirmCode!==String(selected.row.code||selected.row.id)} onClick={archiveOrRestore}><Trash2 size={15}/> Xóa khỏi danh sách (lưu trữ)</button>
+              <button className="button" style={{marginTop:12,color:'#b91c1c'}} disabled={working} onClick={archiveOrRestore}><Trash2 size={15}/> Xóa khỏi danh sách (lưu trữ)</button>
             </>:<p>Không thể xóa nhanh chuyến đang xử lý, đã nhận tài xế hoặc đã hoàn thành. Đối soát dữ liệu công nợ trước khi xử lý.</p>}
             {actionError&&<p role="alert" style={{color:'#b91c1c'}}>{actionError}</p>}
           </section>

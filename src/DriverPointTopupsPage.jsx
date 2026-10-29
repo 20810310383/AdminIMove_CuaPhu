@@ -32,12 +32,6 @@ export default function DriverPointTopupsPage(){
   const [loading,setLoading]=React.useState(true);
   const [error,setError]=React.useState('');
   const [busy,setBusy]=React.useState('');
-  const [adjustOpen,setAdjustOpen]=React.useState(false);
-  const [drivers,setDrivers]=React.useState([]);
-  const [adjustments,setAdjustments]=React.useState([]);
-  const [driverQuery,setDriverQuery]=React.useState('');
-  const [adjustBusy,setAdjustBusy]=React.useState(false);
-  const [adjustForm,setAdjustForm]=React.useState({driverId:'',direction:'CREDIT',points:'',reason:'',reference:''});
 
   const load=React.useCallback(async()=>{
     setLoading(true);setError('');
@@ -83,48 +77,6 @@ export default function DriverPointTopupsPage(){
     try{await navigator.clipboard.writeText(String(text||''))}catch(_){/* no-op */}
   }
 
-  async function openAdjustment(){
-    setAdjustOpen(true);setError('');setAdjustBusy(true);
-    try{
-      const [accounts,history]=await Promise.all([
-        coreApiRequest('/api/v72/admin/driver-experience/point-accounts?limit=500'),
-        coreApiRequest('/api/v72/admin/driver-experience/point-adjustments?limit=50'),
-      ]);
-      const list=Array.isArray(accounts?.drivers)?accounts.drivers:[];
-      setDrivers(list);
-      setAdjustments(Array.isArray(history?.adjustments)?history.adjustments:[]);
-      setAdjustForm(v=>({...v,driverId:v.driverId||list[0]?.driverId||''}));
-    }catch(e){setError(e.message||String(e))}
-    finally{setAdjustBusy(false)}
-  }
-
-  async function saveAdjustment(e){
-    e.preventDefault();setError('');
-    const points=Math.trunc(Number(adjustForm.points||0));
-    if(!adjustForm.driverId){setError('Vui lòng chọn tài xế.');return}
-    if(!points){setError('Số điểm phải lớn hơn 0.');return}
-    if(String(adjustForm.reason||'').trim().length<3){setError('Vui lòng nhập lý do điều chỉnh.');return}
-    setAdjustBusy(true);
-    try{
-      const key=uuid();
-      const result=await coreApiRequest('/api/v72/admin/driver-experience/point-adjustments',{
-        method:'POST',
-        headers:{'Idempotency-Key':key},
-        body:JSON.stringify({...adjustForm,points:Math.abs(points),idempotencyKey:key}),
-      });
-      const accounts=await coreApiRequest('/api/v72/admin/driver-experience/point-accounts?limit=500');
-      const history=await coreApiRequest('/api/v72/admin/driver-experience/point-adjustments?limit=50');
-      setDrivers(Array.isArray(accounts?.drivers)?accounts.drivers:[]);
-      setAdjustments(Array.isArray(history?.adjustments)?history.adjustments:[]);
-      setAdjustForm(v=>({...v,points:'',reason:'',reference:''}));
-      window.alert(`Đã ${adjustForm.direction==='DEBIT'?'trừ':'cộng'} điểm. Số dư mới: ${num(result?.balance||0)} điểm.`);
-    }catch(e){setError(e.message||String(e))}
-    finally{setAdjustBusy(false)}
-  }
-
-  const filteredDrivers=drivers.filter(d=>`${d.fullName||''} ${d.phone||''} ${d.driverId||''}`.toLowerCase().includes(driverQuery.trim().toLowerCase()));
-  const selectedDriver=drivers.find(d=>d.driverId===adjustForm.driverId);
-  const pointValue=Number(selectedDriver?.pointValueVnd||1000);
   const all=rows.length;
   const pending=rows.filter(x=>x.status==='PENDING_REVIEW').length;
   const approved=rows.filter(x=>x.status==='APPROVED');
@@ -134,11 +86,10 @@ export default function DriverPointTopupsPage(){
     <header className="v14-page-head">
       <div>
         <span className="v14-eyebrow">DRIVER POINTS · COMPANY FUND</span>
-        <h1>Nạp & điều chỉnh điểm tài xế</h1>
-        <p>Đối chiếu chuyển khoản và tạo giao dịch cộng/trừ điểm có kiểm soát, ghi audit log đầy đủ.</p>
+        <h1>Nạp quỹ & duyệt biên lai</h1>
+        <p>Đối chiếu chuyển khoản, duyệt biên lai và cấu hình QR nhận quỹ. Cộng/trừ điểm thủ công được thực hiện tại trang Quản lý điểm tài xế.</p>
       </div>
       <div className="page-actions">
-        <button className="button button-primary" onClick={openAdjustment}><Plus size={15}/>Tạo giao dịch điểm</button>
         <label className="enterprise-search" style={{minWidth:280}}><Search size={15}/><input value={keyword} onChange={e=>setKeyword(e.target.value)} placeholder="Tên, SĐT, mã CK..."/></label>
         <select value={status} onChange={e=>setStatus(e.target.value)}>
           <option value="PENDING_REVIEW">Chờ duyệt</option><option value="APPROVED">Đã duyệt</option><option value="AMOUNT_MISMATCH">Sai số tiền</option><option value="REJECTED">Đã từ chối</option><option value="ALL">Tất cả</option>
@@ -176,27 +127,6 @@ export default function DriverPointTopupsPage(){
       </tr>})}</tbody>
     </table>{!loading&&!rows.length&&<div className="v14-empty">Chưa có yêu cầu nạp điểm phù hợp.</div>}{loading&&<div className="v14-empty">Đang tải yêu cầu...</div>}</div></section>
 
-    {adjustOpen&&<AdminOverlayPortal><div className="modal-backdrop" role="presentation" onMouseDown={()=>!adjustBusy&&setAdjustOpen(false)}>
-      <section className="modal driver-point-adjust-modal" role="dialog" aria-modal="true" onMouseDown={e=>e.stopPropagation()}>
-        <header><div><h2>Tạo giao dịch điểm tài xế</h2><p>Cộng/trừ trực tiếp quỹ điểm, không thay đổi tiền mặt thu từ khách.</p></div><button type="button" className="icon-button" onClick={()=>!adjustBusy&&setAdjustOpen(false)}><X size={18}/></button></header>
-        <form onSubmit={saveAdjustment}>
-          <div className="form-grid">
-            <label className="span-2">Tìm tài xế<input value={driverQuery} onChange={e=>setDriverQuery(e.target.value)} placeholder="Tên, SĐT hoặc Driver ID"/></label>
-            <label className="span-2">Tài xế<select value={adjustForm.driverId} onChange={e=>setAdjustForm({...adjustForm,driverId:e.target.value})}>{filteredDrivers.map(d=><option key={d.driverId} value={d.driverId}>{d.fullName} · {d.phone} · {num(d.balance)} điểm</option>)}</select></label>
-            <label>Loại giao dịch<select value={adjustForm.direction} onChange={e=>setAdjustForm({...adjustForm,direction:e.target.value})}><option value="CREDIT">Cộng điểm</option><option value="DEBIT">Trừ điểm</option></select></label>
-            <label>Số điểm<input type="number" min="1" step="1" value={adjustForm.points} onChange={e=>setAdjustForm({...adjustForm,points:e.target.value})} placeholder="VD: 100"/></label>
-            <label className="span-2">Lý do<input value={adjustForm.reason} onChange={e=>setAdjustForm({...adjustForm,reason:e.target.value})} placeholder="VD: Bổ sung điểm sau đối soát"/></label>
-            <label className="span-2">Mã tham chiếu / ghi chú<input value={adjustForm.reference} onChange={e=>setAdjustForm({...adjustForm,reference:e.target.value})} placeholder="Không bắt buộc"/></label>
-          </div>
-          <div className="driver-point-adjust-summary">
-            <span>Số dư hiện tại <b>{num(selectedDriver?.balance||0)} điểm</b></span>
-            <span>Quy đổi tham chiếu <b>{money(Math.abs(Number(adjustForm.points||0))*pointValue)}</b></span>
-            <span>Số dư dự kiến <b>{num(Number(selectedDriver?.balance||0)+(adjustForm.direction==='DEBIT'?-1:1)*Math.abs(Number(adjustForm.points||0)))} điểm</b></span>
-          </div>
-          <footer><button type="button" className="button" onClick={()=>setAdjustOpen(false)} disabled={adjustBusy}>Hủy</button><button className="button button-primary" disabled={adjustBusy}><Save size={15}/>{adjustBusy?'Đang ghi giao dịch...':'Xác nhận giao dịch'}</button></footer>
-        </form>
-        <section className="driver-point-adjust-history"><header><History size={15}/><b>Điều chỉnh gần nhất</b></header>{adjustments.slice(0,8).map(a=><div key={a.id}><span>{a.direction==='DEBIT'?<Minus size={13}/>:<Plus size={13}/>}<b>{a.points>0?'+':''}{num(a.points)} điểm</b></span><small>{a.reason||a.reference||'Điều chỉnh bởi Admin'} · {date(a.createdAt)}</small></div>)}</section>
-      </section>
-    </div></AdminOverlayPortal>}
+
   </section>;
 }
