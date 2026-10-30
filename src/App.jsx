@@ -1,4 +1,5 @@
 import AdminOverlayPortal from './AdminOverlayPortal.jsx';
+import DriverPointsManagementPage from './DriverPointsManagementPage.jsx';
 import React from 'react';
 import PrivacyPolicyPage from './PrivacyPolicyPage.jsx';
 import DriverManagement from './DriverManagement.jsx';
@@ -426,7 +427,8 @@ const nav=[
   ['promotions','Khuyến mãi',CircleDollarSign,'promotions.view'],
   ['ad-banners','Banner quảng cáo',Megaphone,'promotions.view'],
   ['payments','Thanh toán',WalletCards,'payments.view'],
-  ['driver-point-topups','Điểm & nạp quỹ',BadgeDollarSign,'drivers.view'],
+  ['driver-points-center','Quản lý điểm tài xế',BadgeDollarSign,'drivers.view'],
+  ['driver-point-topups','Nạp quỹ & biên lai',BadgeDollarSign,'drivers.view'],
   ['settlement','Settlement / Đối soát',CircleDollarSign,'settlements.view'],
   ['reports','Báo cáo',ChartNoAxesCombined,'reports.view'],
   ['broadcasts','Thông báo hệ thống',Megaphone,'broadcast.view'],
@@ -447,7 +449,7 @@ const navGroups=[
   {label:'VẬN HÀNH',items:['operations','trips','dispatch69','matching','driver-experience']},
   {label:'NGƯỜI DÙNG & ĐỐI TÁC',items:['customers','drivers','kyc','merchants']},
   {label:'COMMERCE',items:['commerce-orders']},
-  {label:'KINH DOANH',items:['pricing','promotions','ad-banners','payments','driver-point-topups','settlement','reports']},
+  {label:'KINH DOANH',items:['pricing','promotions','ad-banners','payments','driver-points-center','driver-point-topups','settlement','reports']},
   {label:'TRUYỀN THÔNG',items:['broadcasts','support']},
   {label:'AN TOÀN & HỆ THỐNG',items:['trust','production-health','legal-settings','otp-management','admin-accounts','admin-roles','admin-audit','admin-profile','settings']}
 ];
@@ -1314,6 +1316,7 @@ function AdminApp(){
   if(page==='promotions')view=can('promotions.view')?<PromotionsAdminPage/>:<PermissionDenied/>;
   if(page==='ad-banners')view=can('promotions.view')?<AdBannersAdminPage/>:<PermissionDenied/>;
   if(page==='payments')view=can('payments.view')?<PaymentsV14Page/>:<PermissionDenied/>;
+  if(page==='driver-points-center')view=can('drivers.view')?<DriverPointsManagementPage/>:<PermissionDenied/>;
   if(page==='driver-point-topups')view=can('drivers.view')?<DriverPointTopupsPage/>:<PermissionDenied/>;
   if(page==='settlement')view=can('settlements.view')?<SettlementPage/>:<PermissionDenied/>;
   if(page==='reports')view=can('reports.view')?<AnalyticsReportsPage/>:<PermissionDenied/>;
