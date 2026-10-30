@@ -67,6 +67,25 @@ export default function MatchingControlPage({access}){
 
   React.useEffect(()=>{load()},[load]);
 
+  // This page can stay open while another Admin archives a trip.
+  // Revalidate the server queue periodically and immediately on local archive.
+  React.useEffect(() => {
+    let active = true;
+    const refreshQueue = async () => {
+      try {
+        const next = await coreApiRequest('/api/v8/admin/matching/queue?limit=50');
+        if (!active || !Array.isArray(next)) return;
+        setQueue(next);
+        setSelectedBookingId(previous => next.some(x => x.id === previous) ? previous : '');
+      } catch (e) { /* Normal full refresh shows connectivity errors. */ }
+    };
+    const interval = window.setInterval(refreshQueue, 10000);
+    window.addEventListener('imove:booking-archived', refreshQueue);
+    return () => { active = false; window.clearInterval(interval); window.removeEventListener('imove:booking-archived', refreshQueue); };
+  }, []);
+
+  React.useEffect(() => { if (!selectedBookingId) setPreview(null); }, [selectedBookingId]);
+
   const loadPreview=React.useCallback(async(id,{silent=false}={})=>{
     if(!id){setPreview(null);return}
     if(!silent){setWorking('preview');setError('')}
@@ -105,9 +124,8 @@ export default function MatchingControlPage({access}){
       }else{
         await coreApiRequest(`/api/v69/admin/dispatch/bookings/${encodeURIComponent(selectedBookingId)}/retry`,{method:'POST',body:JSON.stringify({reason:dispatchReason})});
       }
-      setMessage(driverId?'Đã phát offer V6.9 trực tiếp cho tài xế.':'Đã phát lại booking bằng Dispatch Engine V6.9.');
+      setMessage(driverId?'Đã phát offer V6.9 trực tiếp cho tài xế.':'Đã gửi yêu cầu phát lại booking qua Dispatch Engine V6.9.');
       await load();
-      if(selectedBookingId)await loadPreview(selectedBookingId).catch(()=>{});
     }catch(e){setError(e.message||String(e))}
     finally{setWorking('')}
   }
@@ -127,7 +145,7 @@ export default function MatchingControlPage({access}){
   if(loading&&!policy)return <div style={{padding:30}}>Đang tải Matching Control Center...</div>;
   const weights=policy?.weights||{};const filters=policy?.filters||{};const fairness=policy?.fairness||{};const pointsPolicy=policy?.pointsPolicy||{blockBelow:0,warnBelow:20};
   const selectedBooking=queue.find(x=>x.id===selectedBookingId);
-  const candidates=preview?.candidates||[];
+  const candidates=selectedBooking && preview?.booking?.id===selectedBookingId ? (preview?.candidates||[]) : [];
 
   return <div>
     <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',gap:15,flexWrap:'wrap',marginBottom:18}}>
