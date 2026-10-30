@@ -36,6 +36,8 @@ const STATUS_LABEL = {
   UNDER_REVIEW: 'Đang xét duyệt',
   APPROVED: 'Đã duyệt',
   REJECTED: 'Cần bổ sung',
+  BLOCKED: 'Đã khóa',
+  ACTIVE: 'Đang hoạt động',
   PENDING: 'Chờ duyệt',
   ONLINE: 'Online',
   OFFLINE: 'Offline',
@@ -69,7 +71,7 @@ function badgeClass(value) {
   const key = s(value);
   if (key === 'APPROVED' || key === 'ONLINE') return 'success';
   if (key === 'OFFLINE') return 'danger';
-  if (key === 'REJECTED') return 'danger';
+  if (key === 'REJECTED' || key === 'BLOCKED') return 'danger';
   if (key === 'SUBMITTED' || key === 'UNDER_REVIEW' || key === 'PENDING') {
     return 'warning';
   }
@@ -197,7 +199,9 @@ function OverviewTab({ detail, onFile }) {
 
         <div className="dm-data-grid">
           <DataItem title="KYC" value={label(driver.kycStatus)} />
-          <DataItem title="Tài khoản" value={label(driver.approvalStatus)} />
+          <DataItem title="Duyệt tài khoản" value={label(driver.approvalStatus)} />
+          <DataItem title="Trạng thái tài khoản" value={label(user.status)} />
+          {driver.accountLock?.reason && <DataItem title="Lý do khóa" value={driver.accountLock.reason} />}
           <DataItem title="Vận hành" value={label(operatingStatus(driver.onlineStatus))} />
           <DataItem title="Driver ID" value={String(driver._id || '')} mono />
         </div>
@@ -604,7 +608,9 @@ function DriverDrawer({
           <>
             <div className="dm-drawer-status">
               <div><span>KYC</span><StatusBadge value={driver.kycStatus} /></div>
-              <div><span>Tài khoản</span><StatusBadge value={driver.approvalStatus} /></div>
+              <div><span>KYC duyệt</span><StatusBadge value={driver.approvalStatus} /></div>
+              <div><span>Đăng nhập</span><StatusBadge value={user.status} /></div>
+              {driver.accountLock?.reason && <div><span>Lý do khóa</span><b>{driver.accountLock.reason}</b></div>}
               <div><span>Vận hành</span><StatusBadge value={driver.onlineStatus} /></div>
               <div><span>Driver ID</span><code>{String(driver._id || driverId)}</code></div>
             </div>

@@ -745,7 +745,7 @@ function Customers(){
 function Drivers(){
   const users=read('customers');
   const userById=new Map(users.map(u=>[mongoId(u._id||u.id),u]));
-  const [rows,setRows]=React.useState(read('drivers'));const [q,setQ]=React.useState('');const [showExport,setShowExport]=React.useState(false);const [selectedDriver,setSelectedDriver]=React.useState(null);const [driverError,setDriverError]=React.useState('');const [driverBusy,setDriverBusy]=React.useState(false);const [showArchived,setShowArchived]=React.useState(false);
+  const [rows,setRows]=React.useState(read('drivers'));const [q,setQ]=React.useState('');const [showExport,setShowExport]=React.useState(false);const [locking,setLocking]=React.useState('');
 
   // Nhận dữ liệu mới mỗi khi bootstrap được đồng bộ lại từ MongoDB.
   React.useEffect(()=>{
@@ -765,39 +765,35 @@ function Drivers(){
   const serviceName=r=>serviceLabels[serviceCode(r)]||serviceCode(r)||'Chưa đăng ký';
   const vehicleName=r=>[r.vehicle?.brand,r.vehicle?.model].filter(Boolean).join(' ').trim();
   const vehiclePlate=r=>r.vehicle?.plateNumber||'';
-  const filtered=rows.filter(r=>(showArchived||!r.adminArchivedAt)&&`${r.id||''} ${driverName(r)} ${driverPhone(r)} ${driverEmail(r)} ${serviceCode(r)} ${serviceName(r)} ${vehicleName(r)} ${vehiclePlate(r)} ${r.area||''}`.toLowerCase().includes(q.toLowerCase()));
-  function commit(next){setRows(next);write('drivers',next)}
-  async function archiveDriver(){
-    if(!selectedDriver||driverBusy)return;
-    const id=mongoId(selectedDriver._id||selectedDriver.id);
-    const reason=window.prompt('Lý do xóa khỏi danh sách/lưu trữ tài xế (ít nhất 10 ký tự):','');
-    if(reason===null)return;
-    if(reason.trim().length<10){setDriverError('Nhập lý do ít nhất 10 ký tự.');return;}
-    if(!window.confirm('Lưu trữ tài xế? Chuyến/điểm/KYC sẽ được giữ để kiểm toán.'))return;
-    setDriverBusy(true);setDriverError('');
-    try{await apiRequest(`/admin/drivers/${encodeURIComponent(id)}/archive`,{method:'POST',body:JSON.stringify({reason:reason.trim()})});
-      const next=await apiRequest('/data/drivers');setRows(next);dbCache.drivers=next;window.dispatchEvent(new Event('imove:update'));setSelectedDriver(null);
-    }catch(e){setDriverError(e.message||String(e));}finally{setDriverBusy(false);}
+  const filtered=rows.filter(r=>`${r.id||''} ${driverName(r)} ${driverPhone(r)} ${driverEmail(r)} ${serviceCode(r)} ${serviceName(r)} ${vehicleName(r)} ${vehiclePlate(r)} ${r.area||''}`.toLowerCase().includes(q.toLowerCase()));
+  async function changeDriverLock(row){
+    const id=mongoId(row._id||row.id);
+    if (!id || locking) return;
+    const locked=String(row.accountStatus||row.user?.status||'ACTIVE').toUpperCase()==='BLOCKED';
+    let reason='';
+    if (!locked){
+      const answer=window.prompt(`Nhập lý do KHÓA tài khoản tài xế ${driverName(row)} (ít nhất 10 ký tự):`);
+      if (answer===null) return;
+      reason=answer.trim();
+      if(reason.length<10){window.alert('Vui lòng nhập lý do khóa ít nhất 10 ký tự.');return;}
+    }else if(!window.confirm(`Mở khóa tài khoản ${driverName(row)}? Tài xế phải đăng nhập lại và tự bật Online.`))return;
+    setLocking(id);
+    try{
+      const result=await apiRequest(`/admin/drivers/${encodeURIComponent(id)}/account-lock`,{method:'POST',body:JSON.stringify({locked:!locked,reason})});
+      await syncDriversFromServer();
+      window.alert(result.message||'Đã cập nhật tài khoản.');
+    }catch(error){window.alert(`Không thể ${locked?'mở':'khóa'} tài khoản: ${error.message}`)}
+    finally{setLocking('')}
   }
+  function commit(next){setRows(next);write('drivers',next)}
   const exportColumns=[
     {key:'id',label:'Mã tài xế'},{key:'name',label:'Họ tên',get:r=>driverName(r)},{key:'phone',label:'Số điện thoại',get:r=>driverPhone(r)},{key:'service',label:'Dịch vụ'},
     {key:'vehicle',label:'Phương tiện đăng ký',get:r=>`${serviceName(r)} · ${vehicleName(r)} · ${vehiclePlate(r)}`},{key:'area',label:'Khu vực'},{key:'license',label:'GPLX'},{key:'rating',label:'Đánh giá',get:r=>r.rating||''},{key:'trips',label:'Số chuyến'},
-    {key:'income',label:'Thu nhập'},{key:'approval',label:'Hồ sơ',get:r=>labels[r.approval]||r.approval},{key:'online',label:'Online',get:r=>driverIsOnline(r)?'Online':'Offline'}
+    {key:'income',label:'Thu nhập'},{key:'approval',label:'Hồ sơ',get:r=>labels[r.approval]||r.approval},{key:'online',label:'Online',get:r=>driverIsOnline(r)?'Online':'Offline'},{key:'accountStatus',label:'Trạng thái tài khoản',get:r=>r.accountStatus||r.user?.status||'ACTIVE'},{key:'lockReason',label:'Lý do khóa',get:r=>r.accountLock?.reason||''}
   ];
   return <><PageIntro title="Tài xế" description="Theo dõi tài xế và trạng thái hoạt động. Online được cập nhật tự động từ ứng dụng tài xế; Admin không thể bật/tắt thủ công." actions={<button type="button" className="button" onClick={()=>setShowExport(true)}><Download size={16}/> Xuất Excel</button>}/>
     <section className="summary-strip" aria-label="Tổng hợp tài xế"><div><Car size={17}/><span><b>{rows.length}</b><small>Tổng tài xế</small></span></div><div><span className="live-dot"></span><span><b>{rows.filter(driverIsOnline).length}</b><small>Đang online</small></span></div><div><Clock3 size={17}/><span><b>{rows.filter(x=>x.approval==='pending').length}</b><small>Chờ duyệt</small></span></div><div><Star size={17}/><span><b>4.8</b><small>Đánh giá TB</small></span></div></section>
-    <section className="card data-card"><CardHeading title="Danh sách tài xế" sub="Chấm xanh = Online · chấm đỏ = Offline" action={<div style={{display:"flex",alignItems:"center",gap:8}}><label style={{fontSize:12}}><input type="checkbox" checked={showArchived} onChange={e=>setShowArchived(e.target.checked)}/> Hiện lưu trữ</label><SearchField value={q} onChange={setQ} placeholder="Tên, khu vực, dịch vụ..."/></div>}/><TableShell caption="Danh sách tài xế TH79 iMove"><thead><tr><th scope="col">Tài xế</th><th scope="col">Dịch vụ đăng ký</th><th scope="col">Phương tiện đăng ký</th><th scope="col">Khu vực</th><th scope="col">GPLX</th><th scope="col">Đánh giá</th><th scope="col">Chuyến</th><th scope="col">Thu nhập</th><th scope="col">Hồ sơ</th><th scope="col">Online</th><th scope="col">Chi tiết</th></tr></thead><tbody>{filtered.map(r=>{const name=driverName(r);const phone=driverPhone(r);return <tr key={r.id}><td><MiniPerson name={name} sub={`${r.id} · ${phone||'—'}`}/></td><td>{serviceName(r)}</td><td><div style={{display:'grid',gap:3,minWidth:138}}><b>{vehicleName(r)||'Chưa có thông tin xe'}</b><small style={{color:'#7b8390'}}>{vehiclePlate(r)||'Chưa có biển số'}</small></div></td><td>{r.area}</td><td>{r.license}</td><td><span className="rating"><Star size={14}/>{r.rating||'Mới'}</span></td><td>{r.trips}</td><td>{money(r.income)}</td><td><Status value={r.adminArchivedAt?'archived':(r.approval||r.approvalStatus||r.kycStatus||'pending')}/></td><td><DriverOnlineIndicator row={r}/></td><td><button type="button" className="button button-small" onClick={()=>{setSelectedDriver(r);setDriverError('')}}>Chi tiết</button></td></tr>})}</tbody></TableShell></section>
-    {selectedDriver&&<div role="dialog" aria-modal="true" style={{position:'fixed',inset:0,zIndex:9999,display:'grid',placeItems:'center',background:'rgba(0,0,0,.45)',padding:16}} onClick={()=>!driverBusy&&setSelectedDriver(null)}><div onClick={e=>e.stopPropagation()} className="card" style={{padding:22,width:'min(520px,96vw)',maxHeight:'85vh',overflowY:'auto'}}>
-      <h2>Thông tin tài xế</h2>
-      <p><b>Tên:</b> {driverName(selectedDriver)}</p><p><b>SĐT:</b> {driverPhone(selectedDriver)}</p><p><b>Mã tài xế:</b> {mongoId(selectedDriver._id||selectedDriver.id)}</p>
-      <p><b>Dịch vụ:</b> {serviceName(selectedDriver)}</p><p><b>Xe:</b> {vehicleName(selectedDriver)} · {vehiclePlate(selectedDriver)}</p>
-      <p><b>Số điểm hiện tại:</b> <strong>{Number(selectedDriver.pointsBalance??0).toLocaleString('vi-VN')}</strong></p>
-      <p><b>Hồ sơ:</b> {selectedDriver.kycStatus||selectedDriver.status||'—'}</p>
-      {selectedDriver.adminArchivedAt&&<p style={{color:'#b91c1c'}}>Đã lưu trữ: {selectedDriver.adminArchiveReason}</p>}
-      <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><button className="button" disabled={driverBusy} onClick={()=>setSelectedDriver(null)}>Đóng</button>
-       {!selectedDriver.adminArchivedAt&&<button className="button" style={{color:'#b91c1c'}} disabled={driverBusy} onClick={archiveDriver}>Xóa khỏi danh sách (lưu trữ)</button>}</div>
-      {driverError&&<p role="alert" style={{color:'#b91c1c'}}>{driverError}</p>}
-    </div></div>}
+    <section className="card data-card"><CardHeading title="Danh sách tài xế" sub="Chấm xanh = Online · chấm đỏ = Offline" action={<SearchField value={q} onChange={setQ} placeholder="Tên, khu vực, dịch vụ..."/>}/><TableShell caption="Danh sách tài xế TH79 iMove"><thead><tr><th scope="col">Tài xế</th><th scope="col">Dịch vụ đăng ký</th><th scope="col">Phương tiện đăng ký</th><th scope="col">Khu vực</th><th scope="col">GPLX</th><th scope="col">Đánh giá</th><th scope="col">Chuyến</th><th scope="col">Thu nhập</th><th scope="col">Hồ sơ</th><th scope="col">Online</th><th scope="col">Khóa tài khoản</th></tr></thead><tbody>{filtered.map(r=>{const name=driverName(r);const phone=driverPhone(r);return <tr key={r.id}><td><MiniPerson name={name} sub={`${r.id} · ${phone||'—'}`}/></td><td>{serviceName(r)}</td><td><div style={{display:'grid',gap:3,minWidth:138}}><b>{vehicleName(r)||'Chưa có thông tin xe'}</b><small style={{color:'#7b8390'}}>{vehiclePlate(r)||'Chưa có biển số'}</small></div></td><td>{r.area}</td><td>{r.license}</td><td><span className="rating"><Star size={14}/>{r.rating||'Mới'}</span></td><td>{r.trips}</td><td>{money(r.income)}</td><td>{r.approval==='pending'?<button className="button button-success button-small" onClick={()=>commit(rows.map(x=>x.id===r.id?{...x,approval:'approved'}:x))}><CheckCircle2 size={14}/> Duyệt</button>:<Status value="approved"/>}</td><td><DriverOnlineIndicator row={r}/></td><td><div style={{display:'grid',gap:6,minWidth:156}}><b style={{color:String(r.accountStatus||r.user?.status||'ACTIVE').toUpperCase()==='BLOCKED'?'#d71939':'#15915c'}}>{String(r.accountStatus||r.user?.status||'ACTIVE').toUpperCase()==='BLOCKED'?'Đã khóa':'Hoạt động'}</b>{r.accountLock?.reason&&<small title={r.accountLock.reason}>Lý do: {r.accountLock.reason}</small>}<button type="button" className="button button-small" disabled={Boolean(locking)} onClick={()=>changeDriverLock(r)}>{locking===mongoId(r._id||r.id)?'Đang xử lý...':String(r.accountStatus||r.user?.status||'ACTIVE').toUpperCase()==='BLOCKED'?'Mở khóa':'Khóa tài khoản'}</button></div></td></tr>})}</tbody></TableShell></section>
     <ExportFieldModal open={showExport} onClose={()=>setShowExport(false)} title="Xuất danh sách tài xế" filename="TH79_iMove_Danh_sach_tai_xe.xlsx" sheetName="Danh sách tài xế" columns={exportColumns} rows={filtered}/>
   </>
 }
