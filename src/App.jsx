@@ -27,6 +27,7 @@ import TripsPage from './TripsPage.jsx';
 import CustomersPage from './CustomersPage.jsx';
 import SettlementPage from './SettlementPage.jsx';
 import MerchantsPage from './MerchantsPage.jsx';
+import MerchantFeesPage from './MerchantFeesPage.jsx';
 import CommerceOrdersPage from './CommerceOrdersPage.jsx';
 import EnterpriseSettingsPage from './SettingsPage.jsx';
 import SupportCenterPage from './SupportCenterPage.jsx';
@@ -421,6 +422,7 @@ const nav=[
   ['customers','Khách hàng',Users,'users.view'],
   ['drivers','Tài xế',Car,'drivers.view'],
   ['merchants','Nhà hàng & Cửa hàng',Store,'merchants.view'],
+  ['merchant-fees','Cấu hình phí Merchant',BadgeDollarSign,'merchants.view'],
   ['commerce-orders','Đơn giao/đồ ăn/mua hộ',ShoppingBag,'orders.view'],
   ['kyc','Hồ sơ / KYC tài xế',UserRoundCheck,'drivers.review'],
   ['pricing','Dịch vụ & Giá cước',BadgeDollarSign,'pricing.view'],
@@ -448,7 +450,7 @@ const navGroups=[
   {label:'TỔNG QUAN',items:['overview']},
   {label:'VẬN HÀNH',items:['operations','trips','dispatch69','matching','driver-experience']},
   {label:'NGƯỜI DÙNG & ĐỐI TÁC',items:['customers','drivers','kyc','merchants']},
-  {label:'COMMERCE',items:['commerce-orders']},
+  {label:'COMMERCE',items:['commerce-orders','merchant-fees']},
   {label:'KINH DOANH',items:['pricing','promotions','ad-banners','payments','driver-points-center','driver-point-topups','settlement','reports']},
   {label:'TRUYỀN THÔNG',items:['broadcasts','support']},
   {label:'AN TOÀN & HỆ THỐNG',items:['trust','production-health','legal-settings','otp-management','admin-accounts','admin-roles','admin-audit','admin-profile','settings']}
@@ -1289,6 +1291,7 @@ function AdminApp(){
   if(page==='trips')view=can('bookings.view')?<TripsPage/>:<PermissionDenied/>;
   if(page==='pricing')view=can('pricing.view')?<ServicePricingPage/>:<PermissionDenied/>;
   if(page==='merchants')view=can('merchants.view')?<MerchantsPage access={adminAccess}/>:<PermissionDenied/>;
+  if(page==='merchant-fees')view=can('merchants.view')?<MerchantFeesPage access={adminAccess}/>:<PermissionDenied/>;
   if(page==='commerce-orders')view=can('orders.view')?<CommerceOrdersPage/>:<PermissionDenied/>;
   if(page==='promotions')view=can('promotions.view')?<PromotionsAdminPage/>:<PermissionDenied/>;
   if(page==='ad-banners')view=can('promotions.view')?<AdBannersAdminPage/>:<PermissionDenied/>;
